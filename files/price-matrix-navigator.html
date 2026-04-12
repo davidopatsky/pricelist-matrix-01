@@ -883,22 +883,11 @@ function parseFirstNum(val) {
 
 // ─── ENVIRONMENT DETECTION ───
 const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const GH_REPO = 'davidopatsky/pricelist-01';
-const GH_RAW  = `https://raw.githubusercontent.com/${GH_REPO}/main`;
-const GH_TOKEN_KEY = 'pricelist_gh_token';
+const GH_RAW  = 'https://raw.githubusercontent.com/davidopatsky/pricelist-01/main';
 const DEFAULT_RATES = [12, 13, 14, 15];
 
-function getGhToken() { return localStorage.getItem(GH_TOKEN_KEY) || ''; }
-function setGhToken(t) { localStorage.setItem(GH_TOKEN_KEY, t); }
-
 async function ghFetchJson(url) {
-  const token = getGhToken();
-  const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-  const r = await fetch(url, { headers });
-  if (r.status === 401 || r.status === 403) {
-    setGhToken('');
-    throw new Error('Token neplatný — obnov přístup');
-  }
+  const r = await fetch(url);
   if (!r.ok) throw new Error(`GitHub ${r.status} pro ${url}`);
   return r.json();
 }
@@ -933,30 +922,6 @@ function ghTransformInfo(meta, sku, name) {
   return { products: [p] };
 }
 
-// ─── TOKEN PROMPT (GitHub Pages) ───
-function showTokenPrompt() {
-  return new Promise(resolve => {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `
-      <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:32px;max-width:420px;width:90%;font-family:DM Sans,sans-serif;">
-        <div style="color:var(--text);font-size:18px;font-weight:600;margin-bottom:12px;">Přístup k ceníku</div>
-        <div style="color:var(--text-muted);font-size:14px;margin-bottom:18px;">Data jsou v privátním GitHub repu. Zadej Personal Access Token (PAT) se scope <code style="color:var(--accent)">repo</code>.</div>
-        <input id="ghTokenInput" type="password" placeholder="ghp_..." style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text);font-family:JetBrains Mono,monospace;font-size:14px;margin-bottom:14px;">
-        <button id="ghTokenBtn" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Uložit a načíst</button>
-        <div style="color:var(--text-dim);font-size:12px;margin-top:10px;">Token je uložen pouze v prohlížeči (localStorage).</div>
-      </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('ghTokenBtn').addEventListener('click', () => {
-      const val = document.getElementById('ghTokenInput').value.trim();
-      if (val) { setGhToken(val); overlay.remove(); resolve(true); }
-    });
-    document.getElementById('ghTokenInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('ghTokenBtn').click();
-    });
-  });
-}
-
 // ─── STATE ───
 let catalog = null;
 let allProducts = [];
@@ -966,11 +931,6 @@ let toastTimer = null;
 // ─── LOAD CATALOG + PRICE & INFO FILES ───
 async function loadCatalog() {
   try {
-    // On GitHub Pages: check token, prompt if missing
-    if (!IS_LOCAL && !getGhToken()) {
-      await showTokenPrompt();
-    }
-
     if (IS_LOCAL) {
       // Local mode: fetch through the proxy server (already transformed)
       catalog = await fetch('../data/catalog.json').then(r => r.json());
