@@ -44,7 +44,7 @@
   /* ── TOP NAV ── */
   .top-bar {
     position: fixed;
-    top: 0;
+    top: 28px;
     left: 0;
     right: 0;
     height: 62px;
@@ -107,7 +107,7 @@
   /* ── MAIN AREA (scrollable) ── */
   .main {
     position: fixed;
-    top: 62px;
+    top: 90px;
     left: 0;
     right: 0;
     bottom: 0;
@@ -747,7 +747,7 @@
   /* 13" MacBook (1440×900 / 1470×956) */
   @media (max-height: 900px) {
     .top-bar { height: 46px; }
-    .main { top: 46px; }
+    .main { top: 74px; }
     .admin-overlay { top: 46px; }
     .admin-panel { padding: 16px; margin: 12px; }
     .admin-title { font-size: 15px; }
@@ -796,10 +796,26 @@
     thead th { padding: 5px 8px; }
     tbody th { padding: 5px 8px; }
   }
+  .disclaimer-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: #1a0000;
+    border-bottom: 1px solid #4a0000;
+    padding: 5px 20px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ef4444;
+    letter-spacing: 0.02em;
+  }
 </style>
 </head>
 <body>
 
+<div class="disclaimer-bar">Pozor, ceník již nepočítá se stojnami v ceně, takže ty kalkulovat za plnou cenu.</div>
 <div class="top-bar" id="topBar"></div>
 
 <div class="admin-overlay" id="adminOverlay">
