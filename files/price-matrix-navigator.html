@@ -111,6 +111,10 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+    transition: bottom 0.2s ease;
+  }
+  .main.bar-visible {
+    bottom: 56px;
   }
   .main::-webkit-scrollbar { width: 6px; }
   .main::-webkit-scrollbar-track { background: transparent; }
@@ -218,8 +222,8 @@
     left: 0;
     z-index: 30;
     background: var(--corner-bg);
-    min-width: 56px;
-    width: 56px;
+    min-width: 44px;
+    width: 44px;
   }
 
   thead th {
@@ -253,8 +257,8 @@
     text-align: right;
     white-space: nowrap;
     user-select: none;
-    min-width: 56px;
-    width: 56px;
+    min-width: 44px;
+    width: 44px;
   }
   tbody th.row-highlight {
     background: var(--bg-elevated);
@@ -1107,8 +1111,10 @@ function showProduct(product) {
 
   const hLabel = product.horizontalLabel || 'šířka';
   const vLabel = product.verticalLabel || 'výška';
-  const isZip = product.id === 'alux-screen-zip';
-  const zipHighlight = { 2300: 'zip-row-a', 2400: 'zip-row-b', 2500: 'zip-row-c' };
+  const isScreen = product.id === 'alux-screen';
+  const screenHighlight = { 2400: 'zip-row-a', 2500: 'zip-row-b', 2600: 'zip-row-c' };
+  const isZaskleni = product.id?.startsWith('alux-zaskleni');
+  const zaskleniHighlight = { 2400: 'zip-row-a', 2500: 'zip-row-b', 2600: 'zip-row-c' };
   // Stojna zone rules per product: returns 2/3/4 or 0 (no zones)
   const stojnaRules = {
     'alux-carbo-dutinkovy': (w, h) => w > 6000 ? 3 : 2,
@@ -1173,7 +1179,8 @@ function showProduct(product) {
     tbody.setAttribute('data-si', si);
     sec.verticalValues.forEach((h, ri) => {
       const row = document.createElement('tr');
-      if (isZip && zipHighlight[h]) row.className = zipHighlight[h];
+      if (isScreen && screenHighlight[h]) row.className = screenHighlight[h];
+      if (isZaskleni && zaskleniHighlight[h]) row.className = zaskleniHighlight[h];
       const th = document.createElement('th');
       th.textContent = h;
       th.setAttribute('data-row', ri);
@@ -1351,12 +1358,13 @@ function updateSelectionBar(name, width, depth, price, sectionLabel) {
   // Installation rates (based on catalog price)
   document.querySelectorAll('#selInstallGroup .sel-install').forEach(input => {
     const rate = parseInt(input.getAttribute('data-rate'));
-    const installPrice = Math.round(price * (1 + rate / 100));
+    const installPrice = Math.round(price * rate / 100);
     input.value = installPrice;
     input.style.width = `${String(installPrice).length + 4}ch`;
   });
 
   document.getElementById('selectionBar').classList.add('visible');
+  document.getElementById('mainContent').classList.add('bar-visible');
 }
 
 // ─── COPY HELPERS ───
