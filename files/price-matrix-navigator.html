@@ -52,34 +52,37 @@
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: flex-start;
-    padding: 8px 20px 4px;
+    padding: 8px 20px 0;
     gap: 4px;
     z-index: 100;
     overflow-x: scroll;
     overflow-y: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: #050608 #1e2028;
+    scrollbar-width: auto;
+    scrollbar-color: #3a3e4a #1e2028;
   }
-  .top-bar::-webkit-scrollbar { height: 8px; -webkit-appearance: none; }
+  .top-bar::-webkit-scrollbar { height: 10px; -webkit-appearance: none; }
   .top-bar::-webkit-scrollbar-track { background: #1e2028; border-top: 1px solid #0a0b0e; }
-  .top-bar::-webkit-scrollbar-thumb { background: #050608; border-radius: 4px; border: 1px solid #1e2028; min-width: 40px; }
-  .top-bar::-webkit-scrollbar-thumb:hover { background: #000; }
+  .top-bar::-webkit-scrollbar-thumb { background: #3a3e4a; border-radius: 5px; border: 2px solid #1e2028; min-width: 60px; }
+  .top-bar::-webkit-scrollbar-thumb:hover { background: #50545e; }
 
   .top-logo {
     height: 26px;
     margin-right: 14px;
+    margin-bottom: 12px;
     flex-shrink: 0;
     filter: invert(1) hue-rotate(180deg) brightness(1.5);
   }
   .top-logo-divider {
     width: 1px;
     height: 24px;
+    margin-bottom: 12px;
     background: var(--border);
     margin-right: 10px;
     flex-shrink: 0;
   }
 
   .nav-tab {
+    margin-bottom: 12px;
     padding: 7px 18px;
     border-radius: 6px;
     font-size: 15px;
@@ -1117,13 +1120,15 @@ function showProduct(product) {
   const zaskleniHighlight = { 2400: 'zip-row-a', 2500: 'zip-row-b', 2600: 'zip-row-c' };
   // Stojna zone rules per product: returns 2/3/4 or 0 (no zones)
   const stojnaRules = {
+    'alux-bioclimatic': (w, h) => w >= 6100 ? 3 : 2,
     'alux-carbo-dutinkovy': (w, h) => w > 6000 ? 3 : 2,
     'alux-carbo-plny': (w, h) => w > 6000 ? 3 : 2,
     'alux-glass': (w, h) => w > 6000 ? 3 : 2,
     'alux-thermo': (w, h) => w > 6000 ? 3 : 2,
-    'strada-carbo-dutinkovy': (w, h) => h > 4000 ? 3 : (w > 5000 ? 3 : 2),
-    'strada-carbo-plny': (w, h) => h > 4000 ? 3 : (w > 4000 ? 3 : 2),
-    'strada-glass': (w, h) => h > 4000 ? 4 : (w > 4000 ? 3 : 2),
+    'alux-trapez': (w, h) => w > 6000 ? 3 : 2,
+    'strada-carbo-dutinkovy': (w, h) => (h >= 4500 || w >= 6000) ? 3 : 2,
+    'strada-carbo-plny': (w, h) => (h >= 4500 || w >= 4500) ? 3 : 2,
+    'strada-glass': (w, h) => h >= 4500 ? 4 : ((w >= 4500 || h >= 3500) ? 3 : 2),
   };
   const stojnaFn = stojnaRules[product.id] || null;
 
