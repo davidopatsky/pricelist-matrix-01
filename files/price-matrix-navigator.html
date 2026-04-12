@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ceník produktů</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0e0f11;
+    --bg-surface: #16181c;
+    --bg-elevated: #1e2025;
+    --border: #2a2d35;
+    --border-subtle: #22252b;
+    --text: #e4e5e9;
+    --text-muted: #7a7e89;
+    --text-dim: #50545e;
+    --accent: #4a9eff;
+    --highlight-row: rgba(74, 158, 255, 0.12);
+    --highlight-col: rgba(74, 158, 255, 0.12);
+    --highlight-cell: rgba(74, 158, 255, 0.25);
+    --copied-flash: rgba(74, 158, 255, 0.3);
+    --header-bg: #1a1d24;
+    --corner-bg: #1a1d24;
+    --tab-inactive: #7a7e89;
+    --toast-bg: #1e2025;
+    --toast-border: #4a9eff;
+    --discount-bg: rgba(52, 211, 153, 0.08);
+    --discount-border: rgba(52, 211, 153, 0.25);
+    --discount-text: #34d399;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── TOP NAV ── */
+  .top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    padding: 8px 20px 4px;
+    gap: 4px;
+    z-index: 100;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #050608 #1e2028;
+  }
+  .top-bar::-webkit-scrollbar { height: 8px; -webkit-appearance: none; }
+  .top-bar::-webkit-scrollbar-track { background: #1e2028; border-top: 1px solid #0a0b0e; }
+  .top-bar::-webkit-scrollbar-thumb { background: #050608; border-radius: 4px; border: 1px solid #1e2028; min-width: 40px; }
+  .top-bar::-webkit-scrollbar-thumb:hover { background: #000; }
+
+  .top-logo {
+    height: 26px;
+    margin-right: 14px;
+    flex-shrink: 0;
+    filter: invert(1) hue-rotate(180deg) brightness(1.5);
+  }
+  .top-logo-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+
+  .nav-tab {
+    padding: 7px 18px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #8b90a0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    user-select: none;
+    letter-spacing: 0.01em;
+  }
+  .nav-tab:hover {
+    color: #c8cbda;
+    background: var(--bg-elevated);
+  }
+  .nav-tab.active {
+    color: #fff;
+    background: rgba(74, 158, 255, 0.15);
+    font-weight: 600;
+  }
+
+  /* ── MAIN AREA (scrollable) ── */
+  .main {
+    position: fixed;
+    top: 62px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .main::-webkit-scrollbar { width: 6px; }
+  .main::-webkit-scrollbar-track { background: transparent; }
+  .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── PRODUCT HEADER ── */
+  .product-header {
+    padding: 12px 20px 0;
+  }
+  .product-name {
+    font-size: clamp(16px, 1.8vw, 22px);
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .product-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .product-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ── DISCOUNT BADGE ── */
+  .discount-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: var(--discount-bg);
+    border: 1px solid var(--discount-border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--discount-text);
+    letter-spacing: 0.01em;
+  }
+  .discount-badge.hidden { display: none; }
+  .discount-label {
+    font-weight: 400;
+    color: rgba(52, 211, 153, 0.7);
+    font-size: 12px;
+  }
+  .delivery-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    font-size: 13px;
+    font-weight: 600;
+    color: #fbbf24;
+    letter-spacing: 0.01em;
+  }
+  .delivery-badge.hidden { display: none; }
+  .delivery-label {
+    font-weight: 400;
+    color: rgba(251, 191, 36, 0.7);
+    font-size: 12px;
+  }
+
+  /* ── MATRIX ── */
+  .matrix-section {
+    padding: 10px 20px 0;
+  }
+  .matrix-wrap {
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-surface);
+    position: relative;
+    max-height: calc(100vh - 180px);
+  }
+  .matrix-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+  .matrix-wrap::-webkit-scrollbar-track { background: var(--bg-surface); }
+  .matrix-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .matrix-wrap::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  .matrix-wrap::-webkit-scrollbar-corner { background: var(--bg-surface); }
+
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 100%;
+  }
+
+  th, td {
+    padding: 0;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  th:last-child, td:last-child { border-right: none; }
+  tr:last-child td, tr:last-child th { border-bottom: none; }
+
+  thead th:first-child {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    background: var(--corner-bg);
+    min-width: 56px;
+    width: 56px;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--header-bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(11px, 1.1vw, 12px);
+    font-weight: 500;
+    color: #9a9eaa;
+    padding: 4px 8px;
+    white-space: nowrap;
+    user-select: none;
+  }
+  thead th.col-highlight {
+    background: var(--bg-elevated);
+    color: var(--accent);
+  }
+
+  tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: var(--header-bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(11px, 1.1vw, 12px);
+    font-weight: 500;
+    color: #9a9eaa;
+    padding: 4px 8px;
+    text-align: right;
+    white-space: nowrap;
+    user-select: none;
+    min-width: 56px;
+    width: 56px;
+  }
+  tbody th.row-highlight {
+    background: var(--bg-elevated);
+    color: var(--accent);
+  }
+
+  td {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(7px, 0.7vw, 8px);
+    font-weight: 400;
+    color: var(--text);
+    padding: 3px 6px;
+    cursor: pointer;
+    transition: background 0.06s ease;
+    white-space: nowrap;
+    user-select: none;
+    min-width: 48px;
+  }
+
+  /* Matrix footer row (e.g. lamela counts) */
+  tfoot.matrix-footer td.footer-cell {
+    font-family: 'Inter', sans-serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(10px, 1vw, 12px);
+    color: #7a8499;
+    text-align: center;
+    padding: 6px 6px;
+    border-top: 1px solid var(--border);
+    background: rgba(74, 158, 255, 0.04);
+    cursor: default;
+  }
+  tfoot.matrix-footer th.footer-label {
+    font-family: 'Inter', sans-serif;
+    font-style: italic;
+    font-size: clamp(9px, 0.9vw, 11px);
+    color: #7a8499;
+    text-align: right;
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    background: rgba(74, 158, 255, 0.04);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  /* Stojna zones — must be BEFORE highlights so highlights win */
+  td.stojna-3 { background: rgba(251, 146, 60, 0.16); }
+  td.stojna-4 { background: rgba(239, 68, 68, 0.18); }
+  thead th.stojna-3 { color: #fb923c; }
+  thead th.stojna-4 { color: #ef4444; }
+  tbody th.stojna-3 { color: #fb923c; }
+  tbody th.stojna-4 { color: #ef4444; }
+
+  td.row-highlight, td.pin-row { background: var(--highlight-row) !important; }
+  td.col-highlight, td.pin-col { background: var(--highlight-col) !important; }
+  td.cell-active, td.pin-cell {
+    background: var(--highlight-cell) !important;
+    color: #fff;
+    font-weight: 500;
+  }
+  th.row-highlight, th.pin-row { background: var(--bg-elevated); color: var(--accent); }
+  th.col-highlight, th.pin-col { background: var(--bg-elevated); color: var(--accent); }
+  td.copied-flash {
+    background: var(--copied-flash) !important;
+    transition: none;
+  }
+  td.cell-na {
+    color: var(--text-dim);
+    cursor: default;
+  }
+
+  /* Stojna legend */
+  .stojna-legend {
+    display: flex; gap: 16px; padding: 8px 12px; margin-top: 6px;
+    font-size: 11px; color: #8b90a0; align-items: center;
+  }
+  .stojna-legend.hidden { display: none; }
+  .stojna-legend .legend-item { display: flex; align-items: center; gap: 5px; }
+  .stojna-legend .legend-swatch {
+    width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0;
+  }
+  .stojna-legend .swatch-3 { background: rgba(251, 146, 60, 0.2); border: 1px solid rgba(251, 146, 60, 0.4); }
+  .stojna-legend .swatch-4 { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); }
+  .stojna-legend .swatch-footer { background: rgba(74, 158, 255, 0.1); border: 1px solid rgba(74, 158, 255, 0.3); }
+  .stojna-legend .legend-footer-note { font-style: italic; color: #7a8499; }
+
+  /* Screen ZIP highlighted rows */
+  tr.zip-row-a td { background: rgba(99, 102, 241, 0.12); }
+  tr.zip-row-b td { background: rgba(16, 185, 129, 0.12); }
+  tr.zip-row-c td { background: rgba(245, 158, 11, 0.12); }
+  tr.zip-row-a th { background: #1a1a2e; color: #818cf8; font-weight: 700; }
+  tr.zip-row-b th { background: #141f1a; color: #10b981; font-weight: 700; }
+  tr.zip-row-c th { background: #1f1a11; color: #f59e0b; font-weight: 700; }
+
+  .corner-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 10px;
+  }
+
+  /* ── TECH DESCRIPTION ── */
+  .multi-matrix-block table { border-collapse: separate; border-spacing: 0; }
+  .multi-matrix-block thead th:first-child .section-tag {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+  .matrix-separator td {
+    background: var(--bg) !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding: 2px 0 !important;
+    height: 4px;
+    cursor: default !important;
+  }
+
+  .tech-section {
+    padding: 12px 20px 20px;
+  }
+  .tech-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 20px;
+  }
+  .tech-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .tech-text {
+    font-size: 20px;
+    line-height: 1.55;
+    color: var(--text-muted);
+  }
+  .tech-text p { margin-bottom: 8px; }
+  .tech-text p:last-child { margin-bottom: 0; }
+  .tech-empty {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* ── SELECTION BAR ── */
+  .selection-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 8px;
+    z-index: 100;
+    transform: translateY(100%);
+    transition: transform 0.2s ease;
+  }
+  .selection-bar.visible {
+    transform: translateY(0);
+  }
+  .sel-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sel-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .sel-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    outline: none;
+    text-align: center;
+    min-width: 60px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .sel-value:hover {
+    border-color: var(--accent);
+  }
+  .sel-value.sel-price {
+    color: #fff;
+    font-weight: 700;
+    font-size: 18px;
+    background: rgba(74, 158, 255, 0.12);
+    border-color: rgba(74, 158, 255, 0.3);
+  }
+  .sel-value.sel-dims {
+    color: var(--text);
+    font-weight: 500;
+    font-size: 16px;
+  }
+  .sel-value.sel-cost {
+    color: #f97316;
+    font-weight: 600;
+    font-size: 17px;
+    background: rgba(249, 115, 22, 0.08);
+    border-color: rgba(249, 115, 22, 0.25);
+  }
+  .sel-value.sel-install {
+    color: var(--discount-text);
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .sel-value.copied {
+    background: var(--copied-flash);
+    border-color: var(--accent);
+  }
+  .sel-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+  .sel-product-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    margin-right: 2px;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 68px;
+    right: 28px;
+    background: var(--toast-bg);
+    border: 1px solid var(--toast-border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    z-index: 200;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── SCROLL HINT ── */
+  .scroll-hint {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    writing-mode: vertical-lr;
+    z-index: 5;
+  }
+  .matrix-wrap.show-scroll-hint .scroll-hint {
+    opacity: 1;
+  }
+
+  /* ── ADMIN PANEL ── */
+  .admin-toggle {
+    margin-left: auto;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .admin-toggle:hover { color: var(--text); background: var(--bg-elevated); }
+  .admin-toggle.open { color: #f97316; background: rgba(249, 115, 22, 0.1); }
+
+  .admin-overlay {
+    display: none;
+    position: fixed;
+    top: 62px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    overflow-y: auto;
+  }
+  .admin-overlay.visible { display: block; }
+
+  .admin-panel {
+    max-width: 1200px;
+    margin: 20px auto;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+  .admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .admin-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .admin-actions {
+    display: flex;
+    gap: 10px;
+  }
+  .admin-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .admin-btn:hover { border-color: var(--text-dim); }
+  .admin-btn.primary {
+    background: rgba(74, 158, 255, 0.15);
+    border-color: rgba(74, 158, 255, 0.3);
+    color: var(--accent);
+  }
+  .admin-btn.primary:hover {
+    background: rgba(74, 158, 255, 0.25);
+    border-color: rgba(74, 158, 255, 0.5);
+  }
+  .admin-btn.save {
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: var(--discount-text);
+  }
+  .admin-btn.save:hover {
+    background: rgba(52, 211, 153, 0.22);
+    border-color: rgba(52, 211, 153, 0.5);
+  }
+
+  .admin-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .admin-install-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .admin-install-row label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .admin-install-row input {
+    width: 60px;
+  }
+
+  .admin-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .admin-table th {
+    background: var(--header-bg);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    user-select: none;
+  }
+  .admin-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    vertical-align: middle;
+    cursor: default;
+  }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: rgba(74, 158, 255, 0.04); }
+
+  .admin-table .product-cell {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    padding-left: 12px;
+  }
+  .admin-input {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 6px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .admin-input:focus { border-color: var(--accent); }
+  .admin-input::-webkit-outer-spin-button,
+  .admin-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .admin-input[type=number] { -moz-appearance: textfield; }
+  .admin-input.num { width: 70px; text-align: center; }
+  .admin-input.weeks { width: 80px; text-align: center; }
+  .admin-input.note { width: 100%; min-width: 160px; }
+
+  .admin-saved-msg {
+    display: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--discount-text);
+    align-items: center;
+    gap: 5px;
+  }
+  .admin-saved-msg.visible { display: flex; }
+
+  /* ── RESPONSIVE ── */
+
+  /* 13" MacBook (1440×900 / 1470×956) */
+  @media (max-height: 900px) {
+    .top-bar { height: 46px; }
+    .main { top: 46px; }
+    .admin-overlay { top: 46px; }
+    .admin-panel { padding: 16px; margin: 12px; }
+    .admin-title { font-size: 15px; }
+    .admin-input { font-size: 12px; padding: 5px 8px; }
+    .admin-input.num { width: 60px; }
+    .admin-table th { padding: 8px 10px; font-size: 10px; }
+    .admin-table td { padding: 4px 6px; }
+    .nav-tab { padding: 5px 14px; font-size: 11px; }
+    .product-header { padding: 8px 16px 0; }
+    .product-name { font-size: 16px; }
+    .product-meta { margin-top: 2px; gap: 10px; }
+    .product-subtitle { font-size: 11px; }
+    .discount-badge { padding: 3px 10px; font-size: 11px; }
+    .delivery-badge { padding: 3px 10px; font-size: 11px; }
+    .matrix-section { padding: 8px 16px 0; }
+    td { padding: 3px 6px; min-width: 44px; font-size: 7px; }
+    thead th { padding: 3px 6px; font-size: 10px; }
+    tbody th { padding: 3px 6px; min-width: 48px; width: 48px; font-size: 10px; }
+    thead th:first-child { min-width: 48px; width: 48px; }
+    .corner-label { padding: 6px 8px; font-size: 9px; }
+    .tech-section { padding: 8px 16px 16px; }
+    .tech-card { padding: 10px 16px; }
+    .tech-title { font-size: 10px; margin-bottom: 6px; }
+    .tech-text { font-size: 18px; line-height: 1.45; }
+    .selection-bar { height: 48px; padding: 0 14px; gap: 5px; }
+    .sel-value { font-size: 14px; padding: 4px 10px; }
+    .sel-value.sel-price { font-size: 15px; }
+    .sel-value.sel-dims { font-size: 14px; }
+    .sel-value.sel-cost { font-size: 14px; }
+    .sel-value.sel-install { font-size: 13px; }
+    .sel-label { font-size: 11px; }
+    .sel-product-name { font-size: 13px; }
+    .sel-divider { height: 26px; margin: 0 5px; }
+  }
+
+  /* 15" MacBook (1710×1112) */
+  @media (min-height: 1000px) and (max-height: 1200px) {
+    td { padding: 4px 7px; min-width: 48px; }
+    thead th { padding: 4px 7px; }
+    tbody th { padding: 4px 8px; }
+  }
+
+  /* Large screens (1920+) */
+  @media (min-width: 1920px) {
+    td { padding: 5px 8px; min-width: 52px; }
+    thead th { padding: 5px 8px; }
+    tbody th { padding: 5px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar" id="topBar"></div>
+
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-panel">
+    <div class="admin-header">
+      <div class="admin-title">⚙ Nastavení produktů</div>
+      <div class="admin-actions">
+        <div class="admin-saved-msg" id="adminSavedMsg">✓ Uloženo</div>
+        <button class="admin-btn save" id="adminSave" onclick="saveAdmin()">Uložit catalog.json</button>
+        <button class="admin-btn" onclick="toggleAdmin()">Zavřít</button>
+      </div>
+    </div>
+
+    <div class="admin-section-title">Montážní sazby (%)</div>
+    <div class="admin-install-row" id="adminInstallRow"></div>
+
+    <div class="admin-section-title">Produkty</div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Produkt</th>
+          <th>Sleva %</th>
+          <th>Náklad %</th>
+          <th>Dodání (týdny)</th>
+          <th>Poznámka dodání</th>
+        </tr>
+      </thead>
+      <tbody id="adminTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="main" id="mainContent">
+  <div class="product-header">
+    <div class="product-name" id="productName"></div>
+    <div class="product-meta">
+      <div class="product-subtitle" id="productSubtitle"></div>
+      <div class="discount-badge hidden" id="discountBadge">
+        <span class="discount-label">Sleva</span>
+        <span id="discountValue"></span>
+      </div>
+      <div class="delivery-badge hidden" id="deliveryBadge">
+        <span class="delivery-label">Dodání</span>
+        <span id="deliveryValue"></span>
+      </div>
+    </div>
+  </div>
+  <div class="matrix-section">
+    <div class="matrix-wrap" id="matrixWrap">
+      <table id="matrixTable"></table>
+      <div class="stojna-legend hidden" id="stojnaLegend"></div>
+      <div class="scroll-hint">POSUN →</div>
+    </div>
+  </div>
+  <div class="tech-section">
+    <div class="tech-card">
+      <div class="tech-title">Technické údaje</div>
+      <div class="tech-text" id="techDescription"></div>
+    </div>
+  </div>
+</div>
+
+<div class="selection-bar" id="selectionBar">
+  <span class="sel-product-name" id="selProductName"></span>
+  <input type="text" class="sel-value sel-dims" id="selDims" readonly>
+  <div class="sel-divider"></div>
+  <div class="sel-group">
+    <span class="sel-label">Cena</span>
+    <input type="text" class="sel-value sel-price" id="selPrice" readonly>
+  </div>
+  <div class="sel-group" id="selCostGroup">
+    <span class="sel-label">Náklad</span>
+    <input type="text" class="sel-value sel-cost" id="selCost" readonly>
+  </div>
+  <div class="sel-divider"></div>
+  <div class="sel-group" id="selInstallGroup"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── HELPERS ───
+function parseFirstNum(val) {
+  if (typeof val === 'number') return val;
+  const m = String(val).match(/\d+/);
+  return m ? parseInt(m[0]) : 0;
+}
+
+// ─── ENVIRONMENT DETECTION ───
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const GH_REPO = 'davidopatsky/pricelist-01';
+const GH_RAW  = `https://raw.githubusercontent.com/${GH_REPO}/main`;
+const GH_TOKEN_KEY = 'pricelist_gh_token';
+const DEFAULT_RATES = [12, 13, 14, 15];
+
+function getGhToken() { return localStorage.getItem(GH_TOKEN_KEY) || ''; }
+function setGhToken(t) { localStorage.setItem(GH_TOKEN_KEY, t); }
+
+async function ghFetchJson(url) {
+  const token = getGhToken();
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+  const r = await fetch(url, { headers });
+  if (r.status === 401 || r.status === 403) {
+    setGhToken('');
+    throw new Error('Token neplatný — obnov přístup');
+  }
+  if (!r.ok) throw new Error(`GitHub ${r.status} pro ${url}`);
+  return r.json();
+}
+
+// ─── GITHUB SCHEMA TRANSFORMATIONS ───
+function ghTransformPrices(raw, sku) {
+  if (raw.type === 'matrix') {
+    return { products: [{ id: sku, sku, order: 0,
+      horizontalValues: raw.horizontal_values || [],
+      verticalValues:   raw.vertical_values   || [],
+      prices:           raw.prices            || [] }] };
+  }
+  if (raw.type === 'multi-matrix') {
+    return { products: [{ id: sku, sku, order: 0, multiMatrix: true,
+      matrices: (raw.variants || []).map(v => ({
+        label: v.label,
+        horizontalValues: v.horizontal_values || [],
+        verticalValues:   v.vertical_values   || [],
+        prices:           v.prices            || [] })) }] };
+  }
+  return { products: [{ id: sku, sku, order: 0,
+    horizontalValues: [], verticalValues: [], prices: [] }] };
+}
+
+function ghTransformInfo(meta, sku, name) {
+  const p = { id: sku, sku, order: 0, name: name || sku,
+    horizontalLabel: meta?.axes?.horizontal?.label || 'šířka',
+    verticalLabel:   meta?.axes?.vertical?.label   || 'hloubka' };
+  if (meta?.horizontal_footer) {
+    p.horizontalFooter = { label: meta.horizontal_footer.label, values: meta.horizontal_footer.values };
+  }
+  return { products: [p] };
+}
+
+// ─── TOKEN PROMPT (GitHub Pages) ───
+function showTokenPrompt() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:32px;max-width:420px;width:90%;font-family:DM Sans,sans-serif;">
+        <div style="color:var(--text);font-size:18px;font-weight:600;margin-bottom:12px;">Přístup k ceníku</div>
+        <div style="color:var(--text-muted);font-size:14px;margin-bottom:18px;">Data jsou v privátním GitHub repu. Zadej Personal Access Token (PAT) se scope <code style="color:var(--accent)">repo</code>.</div>
+        <input id="ghTokenInput" type="password" placeholder="ghp_..." style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text);font-family:JetBrains Mono,monospace;font-size:14px;margin-bottom:14px;">
+        <button id="ghTokenBtn" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Uložit a načíst</button>
+        <div style="color:var(--text-dim);font-size:12px;margin-top:10px;">Token je uložen pouze v prohlížeči (localStorage).</div>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('ghTokenBtn').addEventListener('click', () => {
+      const val = document.getElementById('ghTokenInput').value.trim();
+      if (val) { setGhToken(val); overlay.remove(); resolve(true); }
+    });
+    document.getElementById('ghTokenInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('ghTokenBtn').click();
+    });
+  });
+}
+
+// ─── STATE ───
+let catalog = null;
+let allProducts = [];
+let currentProduct = null;
+let toastTimer = null;
+
+// ─── LOAD CATALOG + PRICE & INFO FILES ───
+async function loadCatalog() {
+  try {
+    // On GitHub Pages: check token, prompt if missing
+    if (!IS_LOCAL && !getGhToken()) {
+      await showTokenPrompt();
+    }
+
+    if (IS_LOCAL) {
+      // Local mode: fetch through the proxy server (already transformed)
+      catalog = await fetch('../data/catalog.json').then(r => r.json());
+    } else {
+      // GitHub Pages mode: fetch pricelist.json + metadata, build catalog
+      const items = await ghFetchJson(`${GH_RAW}/pricelist.json`);
+      const matrixItems = items.filter(it => it.price_formula === 'matrix');
+      const metas = await Promise.all(matrixItems.map(it =>
+        ghFetchJson(`${GH_RAW}/products/${it.category}/${it.sku}/metadata.json`).catch(() => null)
+      ));
+      catalog = {
+        installationRates: DEFAULT_RATES,
+        products: matrixItems.map((it, i) => ({
+          id: it.sku,
+          name: it.name,
+          displayName: metas[i]?.display_name_cs || it.name,
+          folder: it.sku,
+          category: it.category,
+          discount: it.discount || '',
+          costPercent: it.cost_percent || 0,
+          deliveryWeeks: it.delivery_weeks || '',
+          deliveryNote: '',
+          description: it.description || ''
+        }))
+      };
+    }
+
+    // Fetch prices.json and info.json for each product
+    const fetches = catalog.products.map(async entry => {
+      let priceData, infoData;
+
+      if (IS_LOCAL) {
+        [priceData, infoData] = await Promise.all([
+          fetch(`../data/${entry.folder}/prices.json`).then(r => r.json()),
+          fetch(`../data/${entry.folder}/info.json`).then(r => r.json())
+        ]);
+      } else {
+        const cat = entry.category;
+        const [rawPrices, rawMeta] = await Promise.all([
+          ghFetchJson(`${GH_RAW}/products/${cat}/${entry.id}/prices.json`),
+          ghFetchJson(`${GH_RAW}/products/${cat}/${entry.id}/metadata.json`).catch(() => null)
+        ]);
+        priceData = ghTransformPrices(rawPrices, entry.id);
+        infoData  = ghTransformInfo(rawMeta, entry.id, entry.name);
+      }
+
+      const prices = priceData.products.find(p => p.id === entry.id);
+      const info = infoData.products.find(p => p.id === entry.id);
+      return {
+        ...prices,
+        ...info,
+        catalogName: entry.name,
+        displayName: entry.displayName || entry.name,
+        description: entry.description || info?.description || '',
+        discountRaw: entry.discount ?? '',
+        discount: parseFirstNum(entry.discount),
+        costPercent: entry.costPercent || 0,
+        deliveryWeeks: entry.deliveryWeeks || '',
+        deliveryNote: entry.deliveryNote || ''
+      };
+    });
+
+    allProducts = await Promise.all(fetches);
+
+    buildNav(allProducts);
+    buildInstallGroups();
+    showProduct(allProducts[0]);
+  } catch (err) {
+    document.getElementById('productName').textContent = 'Chyba načítání dat';
+    document.getElementById('techDescription').innerHTML =
+      `<span class="tech-empty">${err.message}</span>`;
+  }
+}
+
+// ─── BADGES ───
+function updateBadges(product) {
+  const discBadge = document.getElementById('discountBadge');
+  const discValue = document.getElementById('discountValue');
+  const rawDisc = String(product.discountRaw ?? product.discount ?? '');
+  if (rawDisc && rawDisc !== '0') {
+    discBadge.classList.remove('hidden');
+    discValue.textContent = rawDisc.includes('%') ? rawDisc : `−${rawDisc}%`;
+  } else {
+    discBadge.classList.add('hidden');
+  }
+
+  const delBadge = document.getElementById('deliveryBadge');
+  const delValue = document.getElementById('deliveryValue');
+  if (product.deliveryWeeks) {
+    delBadge.classList.remove('hidden');
+    let delText = `${product.deliveryWeeks} týdnů`;
+    if (product.deliveryNote) delText += ` · ${product.deliveryNote}`;
+    delValue.textContent = delText;
+  } else {
+    delBadge.classList.add('hidden');
+  }
+}
+
+// ─── INSTALL RATE FIELDS ───
+function buildInstallGroups() {
+  const group = document.getElementById('selInstallGroup');
+  group.innerHTML = '';
+  catalog.installationRates.forEach(rate => {
+    const label = document.createElement('span');
+    label.className = 'sel-label';
+    label.textContent = `Montáž +${rate}%`;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'sel-value sel-install';
+    input.readOnly = true;
+    input.setAttribute('data-rate', rate);
+    input.addEventListener('click', () => copyFromInput(input));
+    group.appendChild(label);
+    group.appendChild(input);
+  });
+}
+
+// ─── NAV ───
+function buildNav(products) {
+  const bar = document.getElementById('topBar');
+  bar.innerHTML = '';
+
+  const logo = document.createElement('img');
+  logo.src = '../files/alux-logo.png';
+  logo.className = 'top-logo';
+  logo.alt = 'ALUX';
+  bar.appendChild(logo);
+
+  const divider = document.createElement('div');
+  divider.className = 'top-logo-divider';
+  bar.appendChild(divider);
+
+  products.forEach((p, i) => {
+    const tab = document.createElement('div');
+    tab.className = 'nav-tab' + (i === 0 ? ' active' : '');
+    tab.textContent = p.catalogName || p.name;
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.nav-tab').forEach((t, j) =>
+        t.classList.toggle('active', j === i)
+      );
+      showProduct(p);
+      document.getElementById('selectionBar').classList.remove('visible');
+    });
+    bar.appendChild(tab);
+  });
+
+  // Admin toggle button
+  const adminBtn = document.createElement('div');
+  adminBtn.className = 'admin-toggle';
+  adminBtn.id = 'adminToggle';
+  adminBtn.innerHTML = '⚙ Nastavení';
+  adminBtn.addEventListener('click', toggleAdmin);
+  bar.appendChild(adminBtn);
+}
+
+// ─── RENDER PRODUCT ───
+function showProduct(product) {
+  currentProduct = product;
+  document.getElementById('productName').textContent = product.displayName || product.catalogName || product.name;
+  updateBadges(product);
+
+  const techEl = document.getElementById('techDescription');
+  if (product.description) {
+    const paragraphs = product.description.split('\n').filter(p => p.trim());
+    techEl.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
+  } else {
+    techEl.innerHTML = '<span class="tech-empty">Žádné technické údaje.</span>';
+  }
+
+  // Normalize: every product is an array of sections
+  const sections = product.multiMatrix
+    ? product.matrices
+    : [{ label: null, horizontalValues: product.horizontalValues, verticalValues: product.verticalValues, prices: product.prices }];
+
+  const hLabel = product.horizontalLabel || 'šířka';
+  const vLabel = product.verticalLabel || 'výška';
+  const isZip = product.id === 'alux-screen-zip';
+  const zipHighlight = { 2300: 'zip-row-a', 2400: 'zip-row-b', 2500: 'zip-row-c' };
+  // Stojna zone rules per product: returns 2/3/4 or 0 (no zones)
+  const stojnaRules = {
+    'alux-carbo-dutinkovy': (w, h) => w > 6000 ? 3 : 2,
+    'alux-carbo-plny': (w, h) => w > 6000 ? 3 : 2,
+    'alux-glass': (w, h) => w > 6000 ? 3 : 2,
+    'alux-thermo': (w, h) => w > 6000 ? 3 : 2,
+    'strada-carbo-dutinkovy': (w, h) => h > 4000 ? 3 : (w > 5000 ? 3 : 2),
+    'strada-carbo-plny': (w, h) => h > 4000 ? 3 : (w > 4000 ? 3 : 2),
+    'strada-glass': (w, h) => h > 4000 ? 4 : (w > 4000 ? 3 : 2),
+  };
+  const stojnaFn = stojnaRules[product.id] || null;
+
+  // Subtitle
+  if (sections.length > 1) {
+    const totalCells = sections.reduce((s, m) => s + m.verticalValues.length * m.horizontalValues.length, 0);
+    document.getElementById('productSubtitle').textContent = `${sections.length} cenových tabulek — ${totalCells} hodnot`;
+  } else {
+    const s = sections[0];
+    document.getElementById('productSubtitle').textContent = `${hLabel} → × ${vLabel} ↓ — ${s.verticalValues.length} × ${s.horizontalValues.length} hodnot`;
+  }
+
+  // Build one table with all sections
+  const wrap = document.getElementById('matrixWrap');
+  const table = document.getElementById('matrixTable');
+  table.style.display = '';
+  table.innerHTML = '';
+  wrap.querySelectorAll('.multi-matrix-block').forEach(el => el.remove());
+
+  sections.forEach((sec, si) => {
+    // Separator between sections
+    if (si > 0) {
+      const sep = document.createElement('tbody');
+      const r = document.createElement('tr');
+      r.className = 'matrix-separator';
+      const td = document.createElement('td');
+      td.setAttribute('colspan', sec.horizontalValues.length + 1);
+      r.appendChild(td);
+      sep.appendChild(r);
+      table.appendChild(sep);
+    }
+
+    // Header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    const corner = document.createElement('th');
+    const tagHtml = sec.label ? `<span class="section-tag">${sec.label}</span>` : '';
+    corner.innerHTML = `${tagHtml}<div class="corner-label"><span>${vLabel} ↓</span><span>${hLabel} →</span></div>`;
+    headerRow.appendChild(corner);
+    sec.horizontalValues.forEach((w, ci) => {
+      const th = document.createElement('th');
+      th.textContent = w;
+      th.setAttribute('data-col', ci);
+      th.setAttribute('data-si', si);
+      if (stojnaFn) { const sz = stojnaFn(w, 0); if (sz > 2) th.classList.add('stojna-' + sz); }
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Data
+    const tbody = document.createElement('tbody');
+    tbody.setAttribute('data-si', si);
+    sec.verticalValues.forEach((h, ri) => {
+      const row = document.createElement('tr');
+      if (isZip && zipHighlight[h]) row.className = zipHighlight[h];
+      const th = document.createElement('th');
+      th.textContent = h;
+      th.setAttribute('data-row', ri);
+      th.setAttribute('data-si', si);
+      if (stojnaFn) { const sz = stojnaFn(0, h); if (sz > 2) th.classList.add('stojna-' + sz); }
+      row.appendChild(th);
+      sec.horizontalValues.forEach((w, ci) => {
+        const td = document.createElement('td');
+        const p = sec.prices[ri][ci];
+        td.setAttribute('data-row', ri);
+        td.setAttribute('data-col', ci);
+        td.setAttribute('data-si', si);
+        if (p === 0 || p == null) { td.textContent = '\u2014'; td.classList.add('cell-na'); }
+        else { td.textContent = p; }
+        if (stojnaFn) { const sz = stojnaFn(w, h); if (sz > 2) td.classList.add('stojna-' + sz); }
+        row.appendChild(td);
+      });
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    // Horizontal footer (e.g. lamela counts for Bioclimatic)
+    if (product.horizontalFooter && product.horizontalFooter.values) {
+      const tfoot = document.createElement('tfoot');
+      tfoot.className = 'matrix-footer';
+      const frow = document.createElement('tr');
+      const labelTh = document.createElement('th');
+      labelTh.className = 'footer-label';
+      labelTh.textContent = product.horizontalFooter.label || '';
+      frow.appendChild(labelTh);
+      sec.horizontalValues.forEach((w, ci) => {
+        const fci = product.horizontalValues ? product.horizontalValues.indexOf(w) : ci;
+        const td = document.createElement('td');
+        td.className = 'footer-cell';
+        const v = product.horizontalFooter.values[fci >= 0 ? fci : ci];
+        td.textContent = v != null ? v : '';
+        frow.appendChild(td);
+      });
+      tfoot.appendChild(frow);
+      table.appendChild(tfoot);
+    }
+  });
+
+  // Stojna + footer legend
+  const legend = document.getElementById('stojnaLegend');
+  const items = [];
+  if (stojnaFn) {
+    const zones = new Set();
+    const allH = sections.flatMap(s => s.horizontalValues);
+    const allV = sections.flatMap(s => s.verticalValues);
+    allH.forEach(w => allV.forEach(h => { const z = stojnaFn(w, h); if (z > 2) zones.add(z); }));
+    const labels = { 3: '3× stojna', 4: '4× stojna + příčky' };
+    [...zones].sort().forEach(z => {
+      items.push(`<span class="legend-item"><span class="legend-swatch swatch-${z}"></span>${labels[z]}</span>`);
+    });
+  }
+  if (product.horizontalFooter && product.horizontalFooter.values) {
+    const l = product.horizontalFooter.label || '';
+    items.push(`<span class="legend-item legend-footer-note"><span class="legend-swatch swatch-footer"></span>řada čísel pod maticí = ${l} pro danou šířku</span>`);
+  }
+  if (items.length) {
+    legend.innerHTML = items.join('');
+    legend.classList.remove('hidden');
+  } else {
+    legend.classList.add('hidden');
+  }
+
+  document.getElementById('mainContent').scrollTop = 0;
+  wrap.scrollTop = 0;
+  wrap.scrollLeft = 0;
+  bindMatrixEvents(table, sections);
+  setTimeout(checkScrollHint, 50);
+}
+
+// ─── MATRIX EVENTS ───
+function bindMatrixEvents(table, sections) {
+  let lastSi = -1, lastRow = -1, lastCol = -1;
+  const wrap = document.getElementById('matrixWrap');
+
+  function getSection(si) {
+    return {
+      tbody: table.querySelector(`tbody[data-si="${si}"]`),
+      thead: table.querySelectorAll('thead')[si]
+    };
+  }
+
+  function clearHover() {
+    table.querySelectorAll('.row-highlight, .col-highlight, .cell-active').forEach(el =>
+      el.classList.remove('row-highlight', 'col-highlight', 'cell-active'));
+  }
+  function clearPin() {
+    wrap.querySelectorAll('.pin-row, .pin-col, .pin-cell').forEach(el =>
+      el.classList.remove('pin-row', 'pin-col', 'pin-cell'));
+  }
+  function highlight(si, row, col, cls) {
+    const { tbody, thead } = getSection(si);
+    if (!tbody || !thead) return;
+    tbody.querySelectorAll(`td[data-row="${row}"]`).forEach(el => el.classList.add(cls === 'pin' ? 'pin-row' : 'row-highlight'));
+    tbody.querySelectorAll(`th[data-row="${row}"]`).forEach(el => el.classList.add(cls === 'pin' ? 'pin-row' : 'row-highlight'));
+    tbody.querySelectorAll(`td[data-col="${col}"]`).forEach(el => el.classList.add(cls === 'pin' ? 'pin-col' : 'col-highlight'));
+    thead.querySelectorAll(`th[data-col="${col}"]`).forEach(el => el.classList.add(cls === 'pin' ? 'pin-col' : 'col-highlight'));
+    const active = tbody.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+    if (active) {
+      active.classList.remove(cls === 'pin' ? 'pin-row' : 'row-highlight', cls === 'pin' ? 'pin-col' : 'col-highlight');
+      active.classList.add(cls === 'pin' ? 'pin-cell' : 'cell-active');
+    }
+  }
+
+  table.addEventListener('mousemove', (e) => {
+    const cell = e.target.closest('td[data-si]');
+    if (!cell) return;
+    const si = parseInt(cell.getAttribute('data-si'));
+    const row = parseInt(cell.getAttribute('data-row'));
+    const col = parseInt(cell.getAttribute('data-col'));
+    if (si === lastSi && row === lastRow && col === lastCol) return;
+    clearHover();
+    lastSi = si; lastRow = row; lastCol = col;
+    highlight(si, row, col, 'hover');
+  });
+
+  table.addEventListener('mouseleave', () => { lastSi = -1; lastRow = -1; lastCol = -1; clearHover(); });
+
+  table.addEventListener('click', (e) => {
+    const cell = e.target.closest('td[data-si]');
+    if (!cell || cell.classList.contains('cell-na')) return;
+    const si = parseInt(cell.getAttribute('data-si'));
+    const ri = parseInt(cell.getAttribute('data-row'));
+    const ci = parseInt(cell.getAttribute('data-col'));
+    clearPin();
+    highlight(si, ri, ci, 'pin');
+
+    const sec = sections[si];
+    const price = parseInt(cell.textContent.trim());
+    const width = sec.horizontalValues[ci];
+    const depth = sec.verticalValues[ri];
+    const baseName = currentProduct.catalogName || currentProduct.name;
+    const name = sec.label ? `${baseName} ${sec.label}` : baseName;
+
+    copyToClipboard(String(price));
+    showToast(`Zkopírováno: ${price}`);
+    cell.classList.add('copied-flash');
+    setTimeout(() => cell.classList.remove('copied-flash'), 200);
+    updateSelectionBar(name, width, depth, price, sec.label);
+  });
+}
+
+// ─── SELECTION BAR ───
+function updateSelectionBar(name, width, depth, price, sectionLabel) {
+  document.getElementById('selProductName').textContent = name;
+  const dimsInput = document.getElementById('selDims');
+  const prefix = sectionLabel ? `${sectionLabel} ` : '';
+  dimsInput.value = `${prefix}${width} × ${depth} mm`;
+  const charLen = prefix.length + String(width).length + 3 + String(depth).length + 7;
+  dimsInput.style.width = `${charLen}ch`;
+  dimsInput.onclick = () => copyFromInput(dimsInput);
+
+  const priceInput = document.getElementById('selPrice');
+  priceInput.value = price;
+  priceInput.style.width = `${String(price).length + 4}ch`;
+  priceInput.onclick = () => copyFromInput(priceInput);
+
+  // Cost
+  const costGroup = document.getElementById('selCostGroup');
+  const costInput = document.getElementById('selCost');
+  if (currentProduct.costPercent > 0) {
+    const cost = Math.round(price * currentProduct.costPercent / 100);
+    costInput.value = cost;
+    costInput.style.width = `${String(cost).length + 4}ch`;
+    costInput.onclick = () => copyFromInput(costInput);
+    costGroup.style.display = 'flex';
+  } else {
+    costGroup.style.display = 'none';
+  }
+
+  // Installation rates (based on catalog price)
+  document.querySelectorAll('#selInstallGroup .sel-install').forEach(input => {
+    const rate = parseInt(input.getAttribute('data-rate'));
+    const installPrice = Math.round(price * (1 + rate / 100));
+    input.value = installPrice;
+    input.style.width = `${String(installPrice).length + 4}ch`;
+  });
+
+  document.getElementById('selectionBar').classList.add('visible');
+}
+
+// ─── COPY HELPERS ───
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+
+function copyFromInput(input) {
+  copyToClipboard(input.value);
+  showToast(`Zkopírováno: ${input.value}`);
+  input.classList.add('copied');
+  setTimeout(() => input.classList.remove('copied'), 300);
+}
+
+// ─── TOAST ───
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('visible'), 1500);
+}
+
+// ─── SCROLL HINT ───
+function checkScrollHint() {
+  const wrap = document.getElementById('matrixWrap');
+  const table = wrap.querySelector('table:not([style*="display: none"])') || wrap.querySelector('table');
+  if (!table) return;
+  wrap.classList.toggle('show-scroll-hint', table.scrollWidth > wrap.clientWidth + 20);
+  wrap.addEventListener('scroll', function hideHint() {
+    wrap.classList.remove('show-scroll-hint');
+  }, { once: true });
+}
+
+// ─── ADMIN PANEL ───
+let adminUnlocked = false;
+const ADMIN_PIN = '2025';
+
+function toggleAdmin() {
+  const overlay = document.getElementById('adminOverlay');
+  const toggle = document.getElementById('adminToggle');
+
+  if (!adminUnlocked) {
+    const pin = prompt('PIN pro nastavení:');
+    if (pin !== ADMIN_PIN) return;
+    adminUnlocked = true;
+  }
+
+  const isOpen = overlay.classList.toggle('visible');
+  toggle.classList.toggle('open', isOpen);
+  if (isOpen) populateAdmin();
+}
+
+function populateAdmin() {
+  // Install rates
+  const installRow = document.getElementById('adminInstallRow');
+  installRow.innerHTML = '';
+  catalog.installationRates.forEach((rate, i) => {
+    const label = document.createElement('label');
+    label.textContent = `Sazba ${i + 1}:`;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'admin-input num';
+    input.value = rate;
+    input.setAttribute('data-install-idx', i);
+    installRow.appendChild(label);
+    installRow.appendChild(input);
+  });
+
+  // Products table
+  const tbody = document.getElementById('adminTableBody');
+  tbody.innerHTML = '';
+  catalog.products.forEach((entry, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="product-cell">${entry.name}</td>
+      <td><input type="text" class="admin-input weeks" data-field="discount" data-idx="${i}" value="${entry.discount || ''}"></td>
+      <td><input type="number" class="admin-input num" data-field="costPercent" data-idx="${i}" value="${entry.costPercent || 0}" min="0" max="100"></td>
+      <td><input type="text" class="admin-input weeks" data-field="deliveryWeeks" data-idx="${i}" value="${entry.deliveryWeeks || ''}"></td>
+      <td><input type="text" class="admin-input note" data-field="deliveryNote" data-idx="${i}" value="${entry.deliveryNote || ''}"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function collectAdminData() {
+  // Collect install rates
+  const installInputs = document.querySelectorAll('#adminInstallRow input');
+  const installationRates = Array.from(installInputs).map(inp => parseInt(inp.value) || 0);
+
+  // Collect product data
+  const products = catalog.products.map((entry, i) => {
+    const get = (field) => {
+      const inp = document.querySelector(`[data-field="${field}"][data-idx="${i}"]`);
+      return inp ? inp.value : '';
+    };
+    const updated = {
+      id: entry.id,
+      name: entry.name,
+      folder: entry.folder,
+      discount: get('discount'),
+      costPercent: parseInt(get('costPercent')) || 0,
+      deliveryWeeks: get('deliveryWeeks')
+    };
+    const note = get('deliveryNote').trim();
+    if (note) updated.deliveryNote = note;
+    if (entry.description) updated.description = entry.description;
+    return updated;
+  });
+
+  return { installationRates, products };
+}
+
+async function saveAdmin() {
+  const data = collectAdminData();
+  const json = JSON.stringify(data, null, 2) + '\n';
+
+  // Try server API first (local dev with server.js)
+  try {
+    const resp = await fetch('/api/save-catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: json
+    });
+    if (resp.ok) {
+      showAdminSaved('Uloženo na server');
+      reloadAfterSave(data);
+      return;
+    }
+  } catch (e) { /* server API not available — fallback */ }
+
+  // Fallback: download file (GitHub Pages / static hosting)
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'catalog.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showAdminSaved('Staženo — nahraď data/catalog.json a pushni');
+  reloadAfterSave(data);
+}
+
+function showAdminSaved(text) {
+  const msg = document.getElementById('adminSavedMsg');
+  msg.textContent = '✓ ' + (text || 'Uloženo');
+  msg.classList.add('visible');
+  setTimeout(() => msg.classList.remove('visible'), 3000);
+}
+
+function reloadAfterSave(data) {
+  // Update live catalog + allProducts so the app reflects changes immediately
+  catalog.installationRates = data.installationRates;
+  catalog.products = data.products;
+
+  // Sync changes into allProducts
+  data.products.forEach((entry, i) => {
+    if (allProducts[i]) {
+      allProducts[i].discountRaw = entry.discount;
+      allProducts[i].discount = parseFirstNum(entry.discount);
+      allProducts[i].costPercent = parseInt(entry.costPercent) || 0;
+      allProducts[i].deliveryWeeks = entry.deliveryWeeks;
+      allProducts[i].deliveryNote = entry.deliveryNote || '';
+    }
+  });
+
+  // Rebuild install rate fields & re-render current product
+  buildInstallGroups();
+  if (currentProduct) {
+    const idx = allProducts.findIndex(p => p.id === currentProduct.id);
+    if (idx >= 0) showProduct(allProducts[idx]);
+  }
+}
+
+// ─── START ───
+loadCatalog();
+</script>
+
+</body>
+</html>

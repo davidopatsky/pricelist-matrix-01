@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+.claude/
+source/
+server.js
+BLUEPRINT.md
+CONSUMERS.md
+README.md
+export/
+*.log
