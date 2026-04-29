@@ -186,6 +186,58 @@
   }
 
   /* ── MATRIX ── */
+  .product-intro {
+    padding: 4px 20px 4px;
+  }
+  .product-intro:empty { display: none; }
+  .intro-card {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .intro-icon {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(74, 158, 255, 0.15);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    font-style: italic;
+    margin-top: 1px;
+  }
+  .intro-body { flex: 1; }
+  .intro-body p { margin: 0 0 6px 0; }
+  .intro-body p:last-child { margin-bottom: 0; }
+  .intro-body strong, .intro-body b { color: var(--text); font-weight: 600; }
+  .intro-body ul { margin: 0 0 8px 0; padding-left: 20px; list-style: none; }
+  .intro-body ul:last-child { margin-bottom: 0; }
+  .intro-body li {
+    margin-bottom: 3px;
+    position: relative;
+  }
+  .intro-body li::before {
+    content: '›';
+    position: absolute;
+    left: -14px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
   .matrix-section {
     padding: 10px 20px 0;
   }
@@ -196,6 +248,21 @@
     background: var(--bg-surface);
     position: relative;
     max-height: calc(100vh - 180px);
+  }
+  .matrix-wrap.compact {
+    display: inline-block;
+    max-width: 100%;
+    margin: 0;
+  }
+  .matrix-wrap.compact .corner-label {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 6px 8px;
+  }
+  .matrix-wrap.compact thead th:first-child {
+    min-width: 70px;
+    width: 70px;
   }
   .matrix-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
   .matrix-wrap::-webkit-scrollbar-track { background: var(--bg-surface); }
@@ -388,6 +455,58 @@
     height: 4px;
     cursor: default !important;
   }
+
+  .matrix-section-desc td {
+    background: var(--bg-elevated) !important;
+    border-right: none !important;
+    padding: 14px 18px !important;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: normal;
+    cursor: default !important;
+  }
+  .matrix-section-desc td p { margin: 0 0 8px 0; }
+  .matrix-section-desc td p:last-child { margin-bottom: 0; }
+  .matrix-section-desc td strong, .matrix-section-desc td b { color: var(--text); font-weight: 600; }
+  .matrix-section-desc td ul { margin: 0 0 8px 0; padding-left: 22px; }
+  .matrix-section-desc td ul:last-child { margin-bottom: 0; }
+  .matrix-section-desc td li { margin-bottom: 4px; }
+
+  /* Section title (multi-matrix variant label, spans full width) */
+  .section-title-row .section-title {
+    background: var(--bg-elevated) !important;
+    color: var(--accent) !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-align: left !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 8px 14px !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-right: none !important;
+    cursor: default !important;
+    position: static !important;
+  }
+
+  th.option-header {
+    background: #1f2630 !important;
+    color: #8ab4f8 !important;
+    font-size: 10px !important;
+    border-left: 2px solid var(--accent) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    padding: 4px 10px !important;
+  }
+  td.option-cell {
+    background: rgba(74, 158, 255, 0.04);
+    color: #b8c0d4;
+    font-size: 11px;
+  }
+  td.option-cell:first-of-type, th.option-header:first-of-type { border-left: 2px solid var(--accent); }
 
   .tech-section {
     padding: 12px 20px 20px;
@@ -863,6 +982,7 @@
       </div>
     </div>
   </div>
+  <div class="product-intro" id="productIntro"></div>
   <div class="matrix-section">
     <div class="matrix-wrap" id="matrixWrap">
       <table id="matrixTable"></table>
@@ -870,7 +990,7 @@
       <div class="scroll-hint">POSUN →</div>
     </div>
   </div>
-  <div class="tech-section">
+  <div class="tech-section" style="display:none">
     <div class="tech-card">
       <div class="tech-title">Technické údaje</div>
       <div class="tech-text" id="techDescription"></div>
@@ -904,6 +1024,40 @@ function parseFirstNum(val) {
   return m ? parseInt(m[0]) : 0;
 }
 
+// Tiny markdown → HTML (paragraphs, bullets, bold)
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function mdInline(s) {
+  return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+function mdToHtml(md) {
+  const lines = md.split('\n');
+  const out = [];
+  let inList = false;
+  let para = [];
+  const flushPara = () => { if (para.length) { out.push(`<p>${para.map(mdInline).join(' ')}</p>`); para = []; } };
+  const flushList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    const bullet = line.match(/^[-*]\s+(.*)$/);
+    if (bullet) {
+      flushPara();
+      if (!inList) { out.push('<ul>'); inList = true; }
+      out.push(`<li>${mdInline(bullet[1])}</li>`);
+    } else if (line.trim() === '') {
+      flushPara();
+      flushList();
+    } else {
+      flushList();
+      para.push(line.trim());
+    }
+  }
+  flushPara();
+  flushList();
+  return out.join('');
+}
+
 // ─── ENVIRONMENT DETECTION ───
 const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const GH_RAW  = 'https://raw.githubusercontent.com/davidopatsky/pricelist-01/main';
@@ -915,8 +1069,44 @@ async function ghFetchJson(url) {
   return r.json();
 }
 
+async function ghFetchText(url) {
+  const r = await fetch(url);
+  if (!r.ok) return '';
+  return r.text();
+}
+
+// Parse knowledge.md → { sections: [{heading, body}] }
+function parseKnowledge(md) {
+  if (!md) return { sections: [] };
+  const text = md.replace(/^---[\s\S]*?---\s*\n/, '').replace(/^#\s.*\n/m, '').trim();
+  const sections = [];
+  let current = null;
+  for (const line of text.split('\n')) {
+    const m = line.match(/^(#{2,3})\s+(.*?)\s*$/);
+    if (m) {
+      if (current) sections.push(current);
+      current = { heading: m[2].trim(), body: '' };
+    } else if (current) {
+      current.body += line + '\n';
+    }
+  }
+  if (current) sections.push(current);
+  return { sections: sections.map(s => ({ heading: s.heading, body: s.body.trim() })) };
+}
+
+function findVariantDescription(knowledge, label) {
+  if (!knowledge?.sections || !label) return '';
+  const norm = s => s.toLowerCase().replace(/[—–-]/g, '-').replace(/\(.*?\)/g, '').trim();
+  const target = norm(label);
+  for (const sec of knowledge.sections) {
+    const h = norm(sec.heading);
+    if (h === target || h.includes(target) || target.includes(h)) return sec.body;
+  }
+  return '';
+}
+
 // ─── GITHUB SCHEMA TRANSFORMATIONS ───
-function ghTransformPrices(raw, sku) {
+function ghTransformPrices(raw, sku, knowledge) {
   if (raw.type === 'matrix') {
     return { products: [{ id: sku, sku, order: 0,
       horizontalValues: raw.horizontal_values || [],
@@ -927,9 +1117,11 @@ function ghTransformPrices(raw, sku) {
     return { products: [{ id: sku, sku, order: 0, multiMatrix: true,
       matrices: (raw.variants || []).map(v => ({
         label: v.label,
+        description: findVariantDescription(knowledge, v.label),
         horizontalValues: v.horizontal_values || [],
         verticalValues:   v.vertical_values   || [],
-        prices:           v.prices            || [] })) }] };
+        prices:           v.prices            || [],
+        options:          v.options           || {} })) }] };
   }
   return { products: [{ id: sku, sku, order: 0,
     horizontalValues: [], verticalValues: [], prices: [] }] };
@@ -992,11 +1184,13 @@ async function loadCatalog() {
         ]);
       } else {
         const cat = entry.category;
-        const [rawPrices, rawMeta] = await Promise.all([
+        const [rawPrices, rawMeta, rawKnow] = await Promise.all([
           ghFetchJson(`${GH_RAW}/products/${cat}/${entry.id}/prices.json`),
-          ghFetchJson(`${GH_RAW}/products/${cat}/${entry.id}/metadata.json`).catch(() => null)
+          ghFetchJson(`${GH_RAW}/products/${cat}/${entry.id}/metadata.json`).catch(() => null),
+          ghFetchText(`${GH_RAW}/products/${cat}/${entry.id}/knowledge.md`)
         ]);
-        priceData = ghTransformPrices(rawPrices, entry.id);
+        const knowledge = parseKnowledge(rawKnow);
+        priceData = ghTransformPrices(rawPrices, entry.id, knowledge);
         infoData  = ghTransformInfo(rawMeta, entry.id, entry.name);
       }
 
@@ -1023,8 +1217,8 @@ async function loadCatalog() {
     showProduct(allProducts[0]);
   } catch (err) {
     document.getElementById('productName').textContent = 'Chyba načítání dat';
-    document.getElementById('techDescription').innerHTML =
-      `<span class="tech-empty">${err.message}</span>`;
+    document.getElementById('productIntro').innerHTML =
+      `<div class="intro-card"><div class="intro-icon">!</div><div class="intro-body">${err.message}</div></div>`;
   }
 }
 
@@ -1115,12 +1309,11 @@ function showProduct(product) {
   document.getElementById('productName').textContent = product.displayName || product.catalogName || product.name;
   updateBadges(product);
 
-  const techEl = document.getElementById('techDescription');
+  const introEl = document.getElementById('productIntro');
   if (product.description) {
-    const paragraphs = product.description.split('\n').filter(p => p.trim());
-    techEl.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
+    introEl.innerHTML = `<div class="intro-card"><div class="intro-icon">i</div><div class="intro-body">${mdToHtml(product.description)}</div></div>`;
   } else {
-    techEl.innerHTML = '<span class="tech-empty">Žádné technické údaje.</span>';
+    introEl.innerHTML = '';
   }
 
   // Normalize: every product is an array of sections
@@ -1148,6 +1341,15 @@ function showProduct(product) {
   };
   const stojnaFn = stojnaRules[product.id] || null;
 
+  // Option column labels (for option keys in variant.options)
+  const optionLabels = {
+    top_cover: 'Horní kryt',
+    vario_valance_crank: 'Vario Valance (klika)',
+    vario_valance_motor: 'Vario Valance (motor)',
+    atypicka_ral: 'Atypická RAL',
+    motor_io_upgrade: 'Motor IO',
+  };
+
   // Subtitle
   if (sections.length > 1) {
     const totalCells = sections.reduce((s, m) => s + m.verticalValues.length * m.horizontalValues.length, 0);
@@ -1164,25 +1366,46 @@ function showProduct(product) {
   table.innerHTML = '';
   wrap.querySelectorAll('.multi-matrix-block').forEach(el => el.remove());
 
+  // Compact width only for markyza-lewens-ancona
+  if (product.id === 'markyza-lewens-ancona') wrap.classList.add('compact');
+  else wrap.classList.remove('compact');
+
   sections.forEach((sec, si) => {
+    // Section options (extra columns appended after price grid)
+    const optionKeys = Object.keys(sec.options || {});
+    const totalCols = sec.horizontalValues.length + 1 + optionKeys.length;
+
     // Separator between sections
     if (si > 0) {
       const sep = document.createElement('tbody');
       const r = document.createElement('tr');
       r.className = 'matrix-separator';
       const td = document.createElement('td');
-      td.setAttribute('colspan', sec.horizontalValues.length + 1);
+      td.setAttribute('colspan', totalCols);
       r.appendChild(td);
       sep.appendChild(r);
       table.appendChild(sep);
+    }
+
+    // Section title row (spans all columns) — only for multi-matrix
+    if (sec.label) {
+      const titleTbody = document.createElement('tbody');
+      titleTbody.className = 'section-title-row';
+      const titleTr = document.createElement('tr');
+      const titleTh = document.createElement('th');
+      titleTh.setAttribute('colspan', totalCols);
+      titleTh.className = 'section-title';
+      titleTh.textContent = sec.label;
+      titleTr.appendChild(titleTh);
+      titleTbody.appendChild(titleTr);
+      table.appendChild(titleTbody);
     }
 
     // Header
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     const corner = document.createElement('th');
-    const tagHtml = sec.label ? `<span class="section-tag">${sec.label}</span>` : '';
-    corner.innerHTML = `${tagHtml}<div class="corner-label"><span>${vLabel} ↓</span><span>${hLabel} →</span></div>`;
+    corner.innerHTML = `<div class="corner-label"><span>${vLabel} ↓</span><span>${hLabel} →</span></div>`;
     headerRow.appendChild(corner);
     sec.horizontalValues.forEach((w, ci) => {
       const th = document.createElement('th');
@@ -1190,6 +1413,12 @@ function showProduct(product) {
       th.setAttribute('data-col', ci);
       th.setAttribute('data-si', si);
       if (stojnaFn) { const sz = stojnaFn(w, 0); if (sz > 2) th.classList.add('stojna-' + sz); }
+      headerRow.appendChild(th);
+    });
+    optionKeys.forEach(key => {
+      const th = document.createElement('th');
+      th.className = 'option-header';
+      th.textContent = optionLabels[key] || key;
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -1219,6 +1448,15 @@ function showProduct(product) {
         if (stojnaFn) { const sz = stojnaFn(w, h); if (sz > 2) td.classList.add('stojna-' + sz); }
         row.appendChild(td);
       });
+      // Option columns
+      optionKeys.forEach(key => {
+        const td = document.createElement('td');
+        td.className = 'option-cell';
+        const v = (sec.options[key] || [])[ri];
+        if (v == null || v === 0) { td.textContent = '\u2014'; td.classList.add('cell-na'); }
+        else { td.textContent = v; td.setAttribute('data-option', key); }
+        row.appendChild(td);
+      });
       tbody.appendChild(row);
     });
     table.appendChild(tbody);
@@ -1242,6 +1480,19 @@ function showProduct(product) {
       });
       tfoot.appendChild(frow);
       table.appendChild(tfoot);
+    }
+
+    // Per-variant description (multi-matrix products with knowledge.md)
+    if (sec.description) {
+      const descTbody = document.createElement('tbody');
+      descTbody.className = 'matrix-section-desc';
+      const descRow = document.createElement('tr');
+      const descCell = document.createElement('td');
+      descCell.setAttribute('colspan', totalCols);
+      descCell.innerHTML = mdToHtml(sec.description);
+      descRow.appendChild(descCell);
+      descTbody.appendChild(descRow);
+      table.appendChild(descTbody);
     }
   });
 
