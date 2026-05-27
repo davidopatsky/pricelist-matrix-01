@@ -399,10 +399,10 @@
     z-index: 20;
     background: var(--header-bg);
     font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(9px, 0.85vw, 10px);
-    font-weight: 500;
-    color: #9a9eaa;
-    padding: 4px 3px;
+    font-size: clamp(11px, 1vw, 13px);
+    font-weight: 600;
+    color: #c8cbda;
+    padding: 5px 6px;
     white-space: nowrap;
     user-select: none;
   }
@@ -417,15 +417,15 @@
     z-index: 10;
     background: var(--header-bg);
     font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(11px, 1.1vw, 12px);
-    font-weight: 500;
-    color: #9a9eaa;
-    padding: 4px 8px;
+    font-size: clamp(11px, 1vw, 13px);
+    font-weight: 600;
+    color: #c8cbda;
+    padding: 5px 8px;
     text-align: right;
     white-space: nowrap;
     user-select: none;
-    min-width: 44px;
-    width: 44px;
+    min-width: 48px;
+    width: 48px;
   }
   tbody th.row-highlight {
     background: var(--bg-elevated);
@@ -434,15 +434,15 @@
 
   td {
     font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(7px, 0.7vw, 8px);
+    font-size: clamp(11px, 1vw, 13px);
     font-weight: 400;
-    color: var(--text);
-    padding: 3px 3px;
+    color: #f0f1f5;
+    padding: 4px 7px;
     cursor: pointer;
     transition: background 0.06s ease;
     white-space: nowrap;
     user-select: none;
-    min-width: 24px;
+    min-width: 36px;
   }
 
   /* Matrix footer row (e.g. lamela counts) */
@@ -523,11 +523,11 @@
 
   .corner-label {
     font-family: 'DM Sans', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
     display: flex;
     justify-content: space-between;
     padding: 8px 10px;
@@ -590,18 +590,20 @@
 
   th.option-header {
     background: #1f2630 !important;
-    color: #8ab4f8 !important;
-    font-size: 10px !important;
+    color: #a4c5ff !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
     border-left: 2px solid var(--accent) !important;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     white-space: nowrap;
-    padding: 4px 10px !important;
+    padding: 5px 10px !important;
   }
   td.option-cell {
-    background: rgba(74, 158, 255, 0.04);
-    color: #b8c0d4;
-    font-size: 11px;
+    background: rgba(74, 158, 255, 0.06);
+    color: #e0e5f0;
+    font-size: 12px;
+    font-weight: 500;
   }
   td.option-cell:first-of-type, th.option-header:first-of-type { border-left: 2px solid var(--accent); }
 
@@ -1007,11 +1009,11 @@
     .discount-badge { padding: 3px 10px; font-size: 11px; }
     .delivery-badge { padding: 3px 10px; font-size: 11px; }
     .matrix-section { padding: 8px 16px 0; }
-    td { padding: 3px 6px; min-width: 44px; font-size: 7px; }
-    thead th { padding: 3px 6px; font-size: 10px; }
-    tbody th { padding: 3px 6px; min-width: 48px; width: 48px; font-size: 10px; }
+    td { padding: 4px 6px; min-width: 36px; font-size: 11px; font-weight: 400; }
+    thead th { padding: 4px 6px; font-size: 11px; font-weight: 600; }
+    tbody th { padding: 4px 8px; min-width: 48px; width: 48px; font-size: 11px; font-weight: 600; }
     thead th:first-child { min-width: 48px; width: 48px; }
-    .corner-label { padding: 6px 8px; font-size: 9px; }
+    .corner-label { padding: 6px 8px; font-size: 10px; }
     .tech-section { padding: 8px 16px 16px; }
     .tech-card { padding: 10px 16px; }
     .tech-title { font-size: 10px; margin-bottom: 6px; }
