@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Ceník produktů</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -241,6 +244,97 @@
   .matrix-section {
     padding: 10px 20px 0;
   }
+  .tariff-section {
+    padding: 8px 20px 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, max-content));
+    gap: 12px;
+    align-items: start;
+  }
+  .tariff-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .tariff-card .tariff-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .tariff-card .tariff-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .tariff-flat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .tariff-percent {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--bg-elevated);
+    transition: background 0.1s ease;
+    display: inline-block;
+    min-width: 56px;
+    text-align: center;
+  }
+  .tariff-percent:hover { background: rgba(74, 158, 255, 0.18); color: var(--accent); }
+  .tariff-percent.copied { background: var(--copied-flash); color: var(--accent); }
+  .tariff-applies-list {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .tariff-table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  .tariff-table th, .tariff-table td {
+    padding: 5px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .tariff-table tr:last-child td { border-bottom: none; }
+  .tariff-table th {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-bottom: 6px;
+  }
+  .tariff-table td.tariff-price {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .tariff-table td.tariff-cell {
+    width: 1%;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .tariff-table td.tariff-cell .tariff-percent {
+    font-size: 13px;
+    padding: 3px 8px;
+    min-width: 48px;
+  }
   .matrix-wrap {
     overflow: auto;
     border: 1px solid var(--border);
@@ -248,6 +342,8 @@
     background: var(--bg-surface);
     position: relative;
     max-height: calc(100vh - 180px);
+    width: fit-content;
+    max-width: 100%;
   }
   .matrix-wrap.compact {
     display: inline-block;
@@ -273,7 +369,8 @@
   table {
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 100%;
+    width: max-content;
+    max-width: 100%;
   }
 
   th, td {
@@ -302,10 +399,10 @@
     z-index: 20;
     background: var(--header-bg);
     font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(11px, 1.1vw, 12px);
+    font-size: clamp(9px, 0.85vw, 10px);
     font-weight: 500;
     color: #9a9eaa;
-    padding: 4px 8px;
+    padding: 4px 3px;
     white-space: nowrap;
     user-select: none;
   }
@@ -340,12 +437,12 @@
     font-size: clamp(7px, 0.7vw, 8px);
     font-weight: 400;
     color: var(--text);
-    padding: 3px 6px;
+    padding: 3px 3px;
     cursor: pointer;
     transition: background 0.06s ease;
     white-space: nowrap;
     user-select: none;
-    min-width: 48px;
+    min-width: 24px;
   }
 
   /* Matrix footer row (e.g. lamela counts) */
@@ -526,12 +623,40 @@
     margin-bottom: 8px;
   }
   .tech-text {
-    font-size: 20px;
-    line-height: 1.55;
+    font-size: 14px;
+    line-height: 1.6;
     color: var(--text-muted);
   }
   .tech-text p { margin-bottom: 8px; }
   .tech-text p:last-child { margin-bottom: 0; }
+  .tech-text strong, .tech-text b { color: var(--text); font-weight: 600; }
+  .tech-text ul { margin: 0 0 8px 0; padding-left: 20px; list-style: none; }
+  .tech-text ul:last-child { margin-bottom: 0; }
+  .tech-text li { margin-bottom: 4px; position: relative; }
+  .tech-text li::before {
+    content: '›';
+    position: absolute;
+    left: -14px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .tech-text .md-h {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin: 14px 0 6px;
+  }
+  .tech-text .md-h:first-child { margin-top: 0; }
+  .tech-text .md-quote {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 500;
+    border-left: 3px solid var(--accent);
+    padding-left: 12px;
+    margin-bottom: 12px;
+  }
   .tech-empty {
     font-size: 13px;
     color: var(--text-dim);
@@ -983,13 +1108,14 @@
     </div>
   </div>
   <div class="product-intro" id="productIntro"></div>
-  <div class="matrix-section">
+  <div class="matrix-section" id="matrixSection">
     <div class="matrix-wrap" id="matrixWrap">
       <table id="matrixTable"></table>
       <div class="stojna-legend hidden" id="stojnaLegend"></div>
       <div class="scroll-hint">POSUN →</div>
     </div>
   </div>
+  <div class="tariff-section" id="tariffSection" style="display:none"></div>
   <div class="tech-section" style="display:none">
     <div class="tech-card">
       <div class="tech-title">Technické údaje</div>
@@ -1040,11 +1166,19 @@ function mdToHtml(md) {
   const flushList = () => { if (inList) { out.push('</ul>'); inList = false; } };
   for (const raw of lines) {
     const line = raw.replace(/\s+$/, '');
+    const heading = line.match(/^(#{2,4})\s+(.*)$/);
     const bullet = line.match(/^[-*]\s+(.*)$/);
-    if (bullet) {
+    const quote = line.match(/^>\s?(.*)$/);
+    if (heading) {
+      flushPara(); flushList();
+      out.push(`<h4 class="md-h">${mdInline(heading[2])}</h4>`);
+    } else if (bullet) {
       flushPara();
       if (!inList) { out.push('<ul>'); inList = true; }
       out.push(`<li>${mdInline(bullet[1])}</li>`);
+    } else if (quote) {
+      flushPara(); flushList();
+      if (quote[1].trim()) out.push(`<p class="md-quote">${mdInline(quote[1])}</p>`);
     } else if (line.trim() === '') {
       flushPara();
       flushList();
@@ -1091,7 +1225,7 @@ function parseKnowledge(md) {
     }
   }
   if (current) sections.push(current);
-  return { sections: sections.map(s => ({ heading: s.heading, body: s.body.trim() })) };
+  return { sections: sections.map(s => ({ heading: s.heading, body: s.body.trim() })), fullBody: text };
 }
 
 function findVariantDescription(knowledge, label) {
@@ -1123,17 +1257,24 @@ function ghTransformPrices(raw, sku, knowledge) {
         prices:           v.prices            || [],
         options:          v.options           || {} })) }] };
   }
+  if (raw.type === 'percent-tariff') {
+    return { products: [{ id: sku, sku, order: 0,
+      pricingType: 'percent-tariff',
+      tariffNote: raw.note || '',
+      tariffSections: raw.sections || [] }] };
+  }
   return { products: [{ id: sku, sku, order: 0,
     horizontalValues: [], verticalValues: [], prices: [] }] };
 }
 
-function ghTransformInfo(meta, sku, name) {
+function ghTransformInfo(meta, sku, name, knowledge) {
   const p = { id: sku, sku, order: 0, name: name || sku,
     horizontalLabel: meta?.axes?.horizontal?.label || 'šířka',
     verticalLabel:   meta?.axes?.vertical?.label   || 'hloubka' };
   if (meta?.horizontal_footer) {
     p.horizontalFooter = { label: meta.horizontal_footer.label, values: meta.horizontal_footer.values };
   }
+  p.knowledgeDescription = knowledge?.fullBody || '';
   return { products: [p] };
 }
 
@@ -1153,24 +1294,42 @@ async function loadCatalog() {
       // GitHub Pages mode: fetch pricelist.json + metadata, build catalog
       const items = await ghFetchJson(`${GH_RAW}/pricelist.json`);
       const matrixItems = items.filter(it => it.price_formula === 'matrix');
+      const montazItem = items.find(it => it.sku === 'montaz'
+        && typeof it.price_formula === 'string'
+        && it.price_formula.startsWith('percent-tariff'));
       const metas = await Promise.all(matrixItems.map(it =>
         ghFetchJson(`${GH_RAW}/products/${it.category}/${it.sku}/metadata.json`).catch(() => null)
       ));
-      catalog = {
-        installationRates: DEFAULT_RATES,
-        products: matrixItems.map((it, i) => ({
-          id: it.sku,
-          name: it.name,
-          displayName: metas[i]?.display_name_cs || it.name,
-          folder: it.sku,
-          category: it.category,
-          discount: it.discount || '',
-          costPercent: it.cost_percent || 0,
-          deliveryWeeks: it.delivery_weeks || '',
+      const matrixProducts = matrixItems.map((it, i) => ({
+        id: it.sku,
+        name: it.name,
+        displayName: metas[i]?.display_name_cs || it.name,
+        folder: it.sku,
+        category: it.category,
+        discount: it.discount || '',
+        costPercent: it.cost_percent || 0,
+        deliveryWeeks: it.delivery_weeks || '',
+        deliveryNote: '',
+        description: it.description || ''
+      }));
+      const products = [];
+      if (montazItem) {
+        products.push({
+          id: 'montaz',
+          name: 'Montáž',
+          displayName: 'Montáž — procentuální sazby',
+          folder: 'montaz',
+          category: montazItem.category,
+          pricingType: 'percent-tariff',
+          discount: '',
+          costPercent: 0,
+          deliveryWeeks: '',
           deliveryNote: '',
-          description: it.description || ''
-        }))
-      };
+          description: montazItem.description || ''
+        });
+      }
+      products.push(...matrixProducts);
+      catalog = { installationRates: DEFAULT_RATES, products };
     }
 
     // Fetch prices.json and info.json for each product
@@ -1191,7 +1350,7 @@ async function loadCatalog() {
         ]);
         const knowledge = parseKnowledge(rawKnow);
         priceData = ghTransformPrices(rawPrices, entry.id, knowledge);
-        infoData  = ghTransformInfo(rawMeta, entry.id, entry.name);
+        infoData  = ghTransformInfo(rawMeta, entry.id, entry.name, knowledge);
       }
 
       const prices = priceData.products.find(p => p.id === entry.id);
@@ -1304,6 +1463,84 @@ function buildNav(products) {
 }
 
 // ─── RENDER PRODUCT ───
+// ─── TARIFF (MONTÁŽ) RENDERER ───
+function fmtCzk(n) {
+  return n == null ? '∞' : new Intl.NumberFormat('cs-CZ').format(n) + ' Kč';
+}
+
+function makePercentChip(percent) {
+  const pct = document.createElement('span');
+  pct.className = 'tariff-percent';
+  pct.textContent = `${percent} %`;
+  pct.title = 'Klikni pro zkopírování';
+  pct.addEventListener('click', () => {
+    copyToClipboard(String(percent));
+    showToast(`Zkopírováno: ${percent} %`);
+    pct.classList.add('copied');
+    setTimeout(() => pct.classList.remove('copied'), 400);
+  });
+  return pct;
+}
+
+function renderTariffView(container, product) {
+  container.innerHTML = '';
+  const sections = product.tariffSections || [];
+
+  sections.forEach(sec => {
+    const card = document.createElement('div');
+    card.className = 'tariff-card';
+
+    const title = document.createElement('div');
+    title.className = 'tariff-title';
+    title.textContent = sec.label || sec.id;
+    card.appendChild(title);
+
+    if (sec.rate_type === 'flat_percent') {
+      if (sec.applies_to_skus?.length) {
+        const sub = document.createElement('div');
+        sub.className = 'tariff-sub';
+        sub.textContent = sec.applies_to_skus.join(' · ');
+        card.appendChild(sub);
+      }
+      const flat = document.createElement('div');
+      flat.className = 'tariff-flat';
+      flat.appendChild(makePercentChip(sec.percent));
+      card.appendChild(flat);
+    } else if (sec.rate_type === 'tiered_by_price') {
+      if (sec.tier_note) {
+        const sub = document.createElement('div');
+        sub.className = 'tariff-sub';
+        sub.textContent = sec.tier_note;
+        card.appendChild(sub);
+      }
+      const table = document.createElement('table');
+      table.className = 'tariff-table';
+      const thead = document.createElement('thead');
+      thead.innerHTML = '<tr><th>Cena produktu do</th><th>Sazba</th></tr>';
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      (sec.tiers || []).forEach(t => {
+        const tr = document.createElement('tr');
+        const tdPrice = document.createElement('td');
+        tdPrice.className = 'tariff-price';
+        tdPrice.textContent = t.price_up_to_czk == null
+          ? (t.note || 'a více')
+          : fmtCzk(t.price_up_to_czk);
+        const tdPct = document.createElement('td');
+        tdPct.className = 'tariff-cell';
+        tdPct.appendChild(makePercentChip(t.percent));
+        tr.appendChild(tdPrice);
+        tr.appendChild(tdPct);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      card.appendChild(table);
+    }
+
+    container.appendChild(card);
+  });
+}
+
 function showProduct(product) {
   currentProduct = product;
   document.getElementById('productName').textContent = product.displayName || product.catalogName || product.name;
@@ -1315,6 +1552,33 @@ function showProduct(product) {
   } else {
     introEl.innerHTML = '';
   }
+
+  // Bottom: general product description from knowledge.md "## Popis"
+  const techSection = document.querySelector('.tech-section');
+  const techEl = document.getElementById('techDescription');
+  if (product.knowledgeDescription) {
+    techEl.innerHTML = mdToHtml(product.knowledgeDescription);
+    techSection.style.display = '';
+  } else {
+    techEl.innerHTML = '';
+    techSection.style.display = 'none';
+  }
+
+  // PERCENT-TARIFF view (Montáž) — render and return early
+  const matrixSectionEl = document.getElementById('matrixSection');
+  const tariffSectionEl = document.getElementById('tariffSection');
+  if (product.pricingType === 'percent-tariff') {
+    matrixSectionEl.style.display = 'none';
+    tariffSectionEl.style.display = '';
+    document.getElementById('selectionBar').classList.remove('visible');
+    document.getElementById('mainContent').classList.remove('bar-visible');
+    document.getElementById('productSubtitle').textContent =
+      `${(product.tariffSections || []).length} sazeb — klikni na procento pro zkopírování`;
+    renderTariffView(tariffSectionEl, product);
+    return;
+  }
+  matrixSectionEl.style.display = '';
+  tariffSectionEl.style.display = 'none';
 
   // Normalize: every product is an array of sections
   const sections = product.multiMatrix
@@ -1818,6 +2082,25 @@ function reloadAfterSave(data) {
     if (idx >= 0) showProduct(allProducts[idx]);
   }
 }
+
+// ─── VERSION CHECK ───
+// On open: check GitHub for latest deployed commit. If our URL doesn't carry
+// the latest sha, replace the URL once → forces fresh fetch (bypasses cache).
+// Does NOT auto-refresh during use. Runs only on Pages, not localhost.
+(async () => {
+  if (IS_LOCAL) return;
+  try {
+    const r = await fetch('https://api.github.com/repos/davidopatsky/pricelist-matrix-01/commits/main?per_page=1', { cache: 'no-store' });
+    if (!r.ok) return;
+    const sha = ((await r.json()).sha || '').slice(0, 7);
+    if (!sha) return;
+    const url = new URL(location.href);
+    if (url.searchParams.get('v') !== sha) {
+      url.searchParams.set('v', sha);
+      location.replace(url.toString());
+    }
+  } catch (e) { /* offline or rate-limited — silently skip */ }
+})();
 
 // ─── START ───
 loadCatalog();
