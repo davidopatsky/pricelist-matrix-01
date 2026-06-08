@@ -1056,6 +1056,18 @@
     font-weight: 600;
     color: #ef4444;
     letter-spacing: 0.02em;
+    line-height: 1.35;
+  }
+
+  /* Mobile portrait: disclaimer wraps to 2-3 lines, push everything down */
+  @media (max-width: 768px) and (orientation: portrait) {
+    .disclaimer-bar { font-size: 12px; padding: 6px 12px; }
+    .top-bar { top: 62px; }
+    .main { top: 124px; }
+  }
+  @media (max-width: 480px) and (orientation: portrait) {
+    .top-bar { top: 78px; }
+    .main { top: 140px; }
   }
 </style>
 </head>
