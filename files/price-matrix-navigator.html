@@ -475,10 +475,16 @@
   /* Stojna zones — must be BEFORE highlights so highlights win */
   td.stojna-3 { background: rgba(251, 146, 60, 0.16); }
   td.stojna-4 { background: rgba(239, 68, 68, 0.18); }
+  td.stojna-5 { background: rgba(168, 85, 247, 0.18); }
+  td.stojna-6 { background: rgba(236, 72, 153, 0.20); }
   thead th.stojna-3 { color: #fb923c; }
   thead th.stojna-4 { color: #ef4444; }
+  thead th.stojna-5 { color: #c084fc; }
+  thead th.stojna-6 { color: #f472b6; }
   tbody th.stojna-3 { color: #fb923c; }
   tbody th.stojna-4 { color: #ef4444; }
+  tbody th.stojna-5 { color: #c084fc; }
+  tbody th.stojna-6 { color: #f472b6; }
 
   td.row-highlight, td.pin-row { background: var(--highlight-row) !important; }
   td.col-highlight, td.pin-col { background: var(--highlight-col) !important; }
@@ -510,6 +516,8 @@
   }
   .stojna-legend .swatch-3 { background: rgba(251, 146, 60, 0.2); border: 1px solid rgba(251, 146, 60, 0.4); }
   .stojna-legend .swatch-4 { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); }
+  .stojna-legend .swatch-5 { background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); }
+  .stojna-legend .swatch-6 { background: rgba(236, 72, 153, 0.2); border: 1px solid rgba(236, 72, 153, 0.4); }
   .stojna-legend .swatch-footer { background: rgba(74, 158, 255, 0.1); border: 1px solid rgba(74, 158, 255, 0.3); }
   .stojna-legend .legend-footer-note { font-style: italic; color: #7a8499; }
 
@@ -1613,9 +1621,23 @@ function showProduct(product) {
     'alux-glass': (w, h) => w > 6000 ? 3 : 2,
     'alux-thermo': (w, h) => w > 6000 ? 3 : 2,
     'alux-trapez': (w, h) => w > 6000 ? 3 : 2,
-    'strada-carbo-dutinkovy': (w, h) => (h >= 4500 || w >= 6000) ? 3 : 2,
-    'strada-carbo-plny': (w, h) => (h >= 4500 || w >= 4500) ? 3 : 2,
-    'strada-glass': (w, h) => h >= 4500 ? 4 : ((w >= 4500 || h >= 3500) ? 3 : 2),
+    'strada-carbo-dutinkovy': (w, h) => {
+      if (h >= 4500) return 5;       // 3 stojny + příčky mezi krokvemi
+      if (w > 5000)  return 3;       // 3 stojny
+      return 2;                      // 2 stojny
+    },
+    'strada-carbo-plny': (w, h) => {
+      if (h >= 4500) return 5;       // 3× stojna + příčky mezi krokvemi
+      if (w >= 4500) return 3;       // 3× stojna
+      return 2;                      // 2× stojna
+    },
+    'strada-glass': (w, h) => {
+      if (h > 4000)  return 6;     // hloubka 4100-4500 → 4× stojna + příčky mezi krokvemi
+      if (w >= 7000) return 4;     // šířka 7000+ (h ≤ 4000) → 4× stojna
+      if (w > 4000)  return 3;     // šířka 4100-6900 → 3× stojna
+      if (h > 3000)  return 3;     // šířka ≤4000, hloubka 3100-4000 → 3× stojna
+      return 2;                    // šířka ≤4000 AND hloubka ≤3000 → 2× stojna
+    },
   };
   const stojnaFn = stojnaRules[product.id] || null;
 
@@ -1782,7 +1804,7 @@ function showProduct(product) {
     const allH = sections.flatMap(s => s.horizontalValues);
     const allV = sections.flatMap(s => s.verticalValues);
     allH.forEach(w => allV.forEach(h => { const z = stojnaFn(w, h); if (z > 2) zones.add(z); }));
-    const labels = { 3: '3× stojna', 4: '4× stojna + příčky' };
+    const labels = { 3: '3× stojna', 4: '4× stojna', 5: '3× stojna + příčky mezi krokvemi', 6: '4× stojna + příčky mezi krokvemi' };
     [...zones].sort().forEach(z => {
       items.push(`<span class="legend-item"><span class="legend-swatch swatch-${z}"></span>${labels[z]}</span>`);
     });
