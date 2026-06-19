@@ -473,18 +473,18 @@
   }
 
   /* Stojna zones — must be BEFORE highlights so highlights win */
-  td.stojna-3 { background: rgba(251, 146, 60, 0.16); }
-  td.stojna-4 { background: rgba(239, 68, 68, 0.18); }
-  td.stojna-5 { background: rgba(168, 85, 247, 0.18); }
-  td.stojna-6 { background: rgba(236, 72, 153, 0.20); }
-  thead th.stojna-3 { color: #fb923c; }
-  thead th.stojna-4 { color: #ef4444; }
-  thead th.stojna-5 { color: #c084fc; }
-  thead th.stojna-6 { color: #f472b6; }
-  tbody th.stojna-3 { color: #fb923c; }
-  tbody th.stojna-4 { color: #ef4444; }
-  tbody th.stojna-5 { color: #c084fc; }
-  tbody th.stojna-6 { color: #f472b6; }
+  td.stojna-3 { background: rgba(245, 200, 40, 0.32); }   /* amber/yellow */
+  td.stojna-4 { background: rgba(239, 68, 68, 0.40); }    /* strong red */
+  td.stojna-5 { background: rgba(139, 92, 246, 0.42); }   /* violet */
+  td.stojna-6 { background: rgba(34, 211, 238, 0.38); }   /* cyan */
+  thead th.stojna-3 { color: #fde047; background: rgba(245, 200, 40, 0.28); }
+  thead th.stojna-4 { color: #fca5a5; background: rgba(239, 68, 68, 0.32); }
+  thead th.stojna-5 { color: #c4b5fd; background: rgba(139, 92, 246, 0.32); }
+  thead th.stojna-6 { color: #67e8f9; background: rgba(34, 211, 238, 0.30); }
+  tbody th.stojna-3 { color: #fde047; background: rgba(245, 200, 40, 0.28); }
+  tbody th.stojna-4 { color: #fca5a5; background: rgba(239, 68, 68, 0.32); }
+  tbody th.stojna-5 { color: #c4b5fd; background: rgba(139, 92, 246, 0.32); }
+  tbody th.stojna-6 { color: #67e8f9; background: rgba(34, 211, 238, 0.30); }
 
   td.row-highlight, td.pin-row { background: var(--highlight-row) !important; }
   td.col-highlight, td.pin-col { background: var(--highlight-col) !important; }
@@ -514,10 +514,10 @@
   .stojna-legend .legend-swatch {
     width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0;
   }
-  .stojna-legend .swatch-3 { background: rgba(251, 146, 60, 0.2); border: 1px solid rgba(251, 146, 60, 0.4); }
-  .stojna-legend .swatch-4 { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); }
-  .stojna-legend .swatch-5 { background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); }
-  .stojna-legend .swatch-6 { background: rgba(236, 72, 153, 0.2); border: 1px solid rgba(236, 72, 153, 0.4); }
+  .stojna-legend .swatch-3 { background: rgba(245, 200, 40, 0.5); border: 1px solid #fde047; }
+  .stojna-legend .swatch-4 { background: rgba(239, 68, 68, 0.6); border: 1px solid #fca5a5; }
+  .stojna-legend .swatch-5 { background: rgba(139, 92, 246, 0.6); border: 1px solid #c4b5fd; }
+  .stojna-legend .swatch-6 { background: rgba(34, 211, 238, 0.55); border: 1px solid #67e8f9; }
   .stojna-legend .swatch-footer { background: rgba(74, 158, 255, 0.1); border: 1px solid rgba(74, 158, 255, 0.3); }
   .stojna-legend .legend-footer-note { font-style: italic; color: #7a8499; }
 
@@ -1267,7 +1267,8 @@ function ghTransformPrices(raw, sku, knowledge) {
     return { products: [{ id: sku, sku, order: 0,
       horizontalValues: raw.horizontal_values || [],
       verticalValues:   raw.vertical_values   || [],
-      prices:           raw.prices            || [] }] };
+      prices:           raw.prices            || [],
+      options:          raw.options           || {} }] };
   }
   if (raw.type === 'multi-matrix') {
     return { products: [{ id: sku, sku, order: 0, multiMatrix: true,
@@ -1319,6 +1320,9 @@ async function loadCatalog() {
       const montazItem = items.find(it => it.sku === 'montaz'
         && typeof it.price_formula === 'string'
         && it.price_formula.startsWith('percent-tariff'));
+      const montazScreen = items.find(it => it.sku === 'montaz-screen');
+      const montazScreenPrice = (montazScreen && typeof montazScreen.standard_price === 'number'
+        && montazScreen.standard_price > 1) ? montazScreen.standard_price : null;
       const metas = await Promise.all(matrixItems.map(it =>
         ghFetchJson(`${GH_RAW}/products/${it.category}/${it.sku}/metadata.json`).catch(() => null)
       ));
@@ -1332,7 +1336,8 @@ async function loadCatalog() {
         costPercent: it.cost_percent || 0,
         deliveryWeeks: it.delivery_weeks || '',
         deliveryNote: '',
-        description: it.description || ''
+        description: it.description || '',
+        montazFixed: it.sku === 'alux-screen' ? montazScreenPrice : null
       }));
       const products = [];
       if (montazItem) {
@@ -1387,7 +1392,8 @@ async function loadCatalog() {
         discount: parseFirstNum(entry.discount),
         costPercent: entry.costPercent || 0,
         deliveryWeeks: entry.deliveryWeeks || '',
-        deliveryNote: entry.deliveryNote || ''
+        deliveryNote: entry.deliveryNote || '',
+        montazFixed: entry.montazFixed ?? null
       };
     });
 
@@ -1428,9 +1434,27 @@ function updateBadges(product) {
 }
 
 // ─── INSTALL RATE FIELDS ───
-function buildInstallGroups() {
+function buildInstallGroups(product) {
   const group = document.getElementById('selInstallGroup');
   group.innerHTML = '';
+
+  // Fixed montáž (e.g. screen — flat CZK from montaz-screen, not a percentage)
+  if (product && product.montazFixed != null) {
+    const label = document.createElement('span');
+    label.className = 'sel-label';
+    label.textContent = 'Montáž';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'sel-value sel-install';
+    input.readOnly = true;
+    input.setAttribute('data-fixed', product.montazFixed);
+    input.addEventListener('click', () => copyFromInput(input));
+    group.appendChild(label);
+    group.appendChild(input);
+    return;
+  }
+
+  // Percentage rates (default for everything else)
   catalog.installationRates.forEach(rate => {
     const label = document.createElement('span');
     label.className = 'sel-label';
@@ -1602,10 +1626,13 @@ function showProduct(product) {
   matrixSectionEl.style.display = '';
   tariffSectionEl.style.display = 'none';
 
+  // Rebuild helper-bar montáž fields for this product (fixed vs percentage)
+  buildInstallGroups(product);
+
   // Normalize: every product is an array of sections
   const sections = product.multiMatrix
     ? product.matrices
-    : [{ label: null, horizontalValues: product.horizontalValues, verticalValues: product.verticalValues, prices: product.prices }];
+    : [{ label: null, horizontalValues: product.horizontalValues, verticalValues: product.verticalValues, prices: product.prices, options: product.options || {} }];
 
   const hLabel = product.horizontalLabel || 'šířka';
   const vLabel = product.verticalLabel || 'výška';
@@ -1647,6 +1674,7 @@ function showProduct(product) {
     vario_valance_crank: 'Vario Valance (klika)',
     vario_valance_motor: 'Vario Valance (motor)',
     atypicka_ral: 'Atypická RAL',
+    atypicka_barva: 'Atypická barva',
     motor_io_upgrade: 'Motor IO',
   };
 
@@ -1927,10 +1955,12 @@ function updateSelectionBar(name, width, depth, price, sectionLabel) {
     costGroup.style.display = 'none';
   }
 
-  // Installation rates (based on catalog price)
+  // Montáž — fixed CZK (e.g. screen) or percentage of catalog price
   document.querySelectorAll('#selInstallGroup .sel-install').forEach(input => {
-    const rate = parseInt(input.getAttribute('data-rate'));
-    const installPrice = Math.round(price * rate / 100);
+    const fixed = input.getAttribute('data-fixed');
+    const installPrice = fixed != null
+      ? parseInt(fixed)
+      : Math.round(price * parseInt(input.getAttribute('data-rate')) / 100);
     input.value = installPrice;
     input.style.width = `${String(installPrice).length + 4}ch`;
   });
