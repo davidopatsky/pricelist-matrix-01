@@ -240,6 +240,29 @@
     color: var(--accent);
     font-weight: 700;
   }
+  .surcharge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    margin-top: 8px;
+  }
+  .surcharge-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    background: rgba(74, 158, 255, 0.10);
+    border: 1px solid rgba(74, 158, 255, 0.25);
+    border-radius: 6px;
+    padding: 5px 12px;
+  }
+  .surcharge-label { color: var(--text-muted); font-size: 13px; }
+  .surcharge-value {
+    color: var(--accent);
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    white-space: nowrap;
+  }
 
   .matrix-section {
     padding: 10px 20px 0;
@@ -1262,6 +1285,23 @@ function findVariantDescription(knowledge, label) {
 }
 
 // ─── GITHUB SCHEMA TRANSFORMATIONS ───
+// Build pergola lakování surcharges from their source SKUs.
+function buildPergolaSurcharges(items) {
+  const out = [];
+  const ram = items.find(it => it.sku === 'extra-ral-ram');
+  const lamely = items.find(it => it.sku === 'extra-ral-lamely');
+  if (ram) {
+    const m = String(ram.price_formula || '').match(/(\d+)\s*%/);
+    if (m) out.push({ label: ram.name || 'Příplatek lakování rámu', value: `${m[1]} % z ceny` });
+  }
+  if (lamely) {
+    const price = (typeof lamely.standard_price === 'number' && lamely.standard_price > 1)
+      ? lamely.standard_price : null;
+    if (price) out.push({ label: lamely.name || 'Příplatek lakování lamel', value: `${price} Kč/m²` });
+  }
+  return out;
+}
+
 function ghTransformPrices(raw, sku, knowledge) {
   if (raw.type === 'matrix') {
     return { products: [{ id: sku, sku, order: 0,
@@ -1323,6 +1363,7 @@ async function loadCatalog() {
       const montazScreen = items.find(it => it.sku === 'montaz-screen');
       const montazScreenPrice = (montazScreen && typeof montazScreen.standard_price === 'number'
         && montazScreen.standard_price > 1) ? montazScreen.standard_price : null;
+      const bioSurcharges = buildPergolaSurcharges(items);
       const metas = await Promise.all(matrixItems.map(it =>
         ghFetchJson(`${GH_RAW}/products/${it.category}/${it.sku}/metadata.json`).catch(() => null)
       ));
@@ -1337,8 +1378,17 @@ async function loadCatalog() {
         deliveryWeeks: it.delivery_weeks || '',
         deliveryNote: '',
         description: it.description || '',
-        montazFixed: it.sku === 'alux-screen' ? montazScreenPrice : null
+        montazFixed: it.sku === 'alux-screen' ? montazScreenPrice : null,
+        surcharges: it.sku === 'alux-bioclimatic' ? bioSurcharges : null
       }));
+      // Bottom-bar montáž rates from montaz/prices.json (installation_rates)
+      let installationRates = DEFAULT_RATES;
+      if (montazItem) {
+        const mp = await ghFetchJson(`${GH_RAW}/products/${montazItem.category}/montaz/prices.json`).catch(() => null);
+        if (mp && Array.isArray(mp.installation_rates) && mp.installation_rates.length) {
+          installationRates = mp.installation_rates;
+        }
+      }
       const products = [];
       if (montazItem) {
         products.push({
@@ -1356,7 +1406,7 @@ async function loadCatalog() {
         });
       }
       products.push(...matrixProducts);
-      catalog = { installationRates: DEFAULT_RATES, products };
+      catalog = { installationRates, products };
     }
 
     // Fetch prices.json and info.json for each product
@@ -1393,7 +1443,8 @@ async function loadCatalog() {
         costPercent: entry.costPercent || 0,
         deliveryWeeks: entry.deliveryWeeks || '',
         deliveryNote: entry.deliveryNote || '',
-        montazFixed: entry.montazFixed ?? null
+        montazFixed: entry.montazFixed ?? null,
+        surcharges: entry.surcharges ?? null
       };
     });
 
@@ -1593,11 +1644,15 @@ function showProduct(product) {
   updateBadges(product);
 
   const introEl = document.getElementById('productIntro');
-  if (product.description) {
-    introEl.innerHTML = `<div class="intro-card"><div class="intro-icon">i</div><div class="intro-body">${mdToHtml(product.description)}</div></div>`;
-  } else {
-    introEl.innerHTML = '';
+  let introBody = product.description ? mdToHtml(product.description) : '';
+  if (product.surcharges && product.surcharges.length) {
+    introBody += '<div class="surcharge-list">' + product.surcharges.map(s =>
+      `<div class="surcharge-item"><span class="surcharge-label">${s.label}</span><span class="surcharge-value">${s.value}</span></div>`
+    ).join('') + '</div>';
   }
+  introEl.innerHTML = introBody
+    ? `<div class="intro-card"><div class="intro-icon">i</div><div class="intro-body">${introBody}</div></div>`
+    : '';
 
   // Bottom: general product description from knowledge.md "## Popis"
   const techSection = document.querySelector('.tech-section');
