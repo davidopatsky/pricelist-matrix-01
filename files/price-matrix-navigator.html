@@ -240,11 +240,28 @@
     color: var(--accent);
     font-weight: 700;
   }
+  /* ── SURCHARGES (separate section) ── */
+  .surcharge-section {
+    padding: 12px 20px 0;
+  }
+  .surcharge-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 20px;
+  }
+  .surcharge-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
   .surcharge-list {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 10px;
-    margin-top: 8px;
   }
   .surcharge-item {
     display: inline-flex;
@@ -253,14 +270,14 @@
     background: rgba(74, 158, 255, 0.10);
     border: 1px solid rgba(74, 158, 255, 0.25);
     border-radius: 6px;
-    padding: 5px 12px;
+    padding: 7px 14px;
   }
-  .surcharge-label { color: var(--text-muted); font-size: 13px; }
+  .surcharge-label { color: var(--text-muted); font-size: 14px; }
   .surcharge-value {
     color: var(--accent);
     font-weight: 700;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
     white-space: nowrap;
   }
 
@@ -1167,6 +1184,12 @@
       <div class="tech-text" id="techDescription"></div>
     </div>
   </div>
+  <div class="surcharge-section" id="surchargeSection" style="display:none">
+    <div class="surcharge-card">
+      <div class="surcharge-title">Příplatky</div>
+      <div class="surcharge-list" id="surchargeList"></div>
+    </div>
+  </div>
 </div>
 
 <div class="selection-bar" id="selectionBar">
@@ -1378,8 +1401,7 @@ async function loadCatalog() {
         deliveryWeeks: it.delivery_weeks || '',
         deliveryNote: '',
         description: it.description || '',
-        montazFixed: it.sku === 'alux-screen' ? montazScreenPrice : null,
-        surcharges: it.sku === 'alux-bioclimatic' ? bioSurcharges : null
+        montazFixed: it.sku === 'alux-screen' ? montazScreenPrice : null
       }));
       // Bottom-bar montáž rates from montaz/prices.json (installation_rates)
       let installationRates = DEFAULT_RATES;
@@ -1393,8 +1415,8 @@ async function loadCatalog() {
       if (montazItem) {
         products.push({
           id: 'montaz',
-          name: 'Montáž',
-          displayName: 'Montáž — procentuální sazby',
+          name: 'Montáž + příplatky',
+          displayName: 'Montáž + příplatky',
           folder: 'montaz',
           category: montazItem.category,
           pricingType: 'percent-tariff',
@@ -1402,7 +1424,8 @@ async function loadCatalog() {
           costPercent: 0,
           deliveryWeeks: '',
           deliveryNote: '',
-          description: montazItem.description || ''
+          description: montazItem.description || '',
+          surcharges: bioSurcharges
         });
       }
       products.push(...matrixProducts);
@@ -1644,15 +1667,22 @@ function showProduct(product) {
   updateBadges(product);
 
   const introEl = document.getElementById('productIntro');
-  let introBody = product.description ? mdToHtml(product.description) : '';
-  if (product.surcharges && product.surcharges.length) {
-    introBody += '<div class="surcharge-list">' + product.surcharges.map(s =>
-      `<div class="surcharge-item"><span class="surcharge-label">${s.label}</span><span class="surcharge-value">${s.value}</span></div>`
-    ).join('') + '</div>';
-  }
-  introEl.innerHTML = introBody
-    ? `<div class="intro-card"><div class="intro-icon">i</div><div class="intro-body">${introBody}</div></div>`
+  introEl.innerHTML = product.description
+    ? `<div class="intro-card"><div class="intro-icon">i</div><div class="intro-body">${mdToHtml(product.description)}</div></div>`
     : '';
+
+  // Surcharges — separate section
+  const surchargeSection = document.getElementById('surchargeSection');
+  const surchargeList = document.getElementById('surchargeList');
+  if (product.surcharges && product.surcharges.length) {
+    surchargeList.innerHTML = product.surcharges.map(s =>
+      `<div class="surcharge-item"><span class="surcharge-label">${s.label}</span><span class="surcharge-value">${s.value}</span></div>`
+    ).join('');
+    surchargeSection.style.display = '';
+  } else {
+    surchargeList.innerHTML = '';
+    surchargeSection.style.display = 'none';
+  }
 
   // Bottom: general product description from knowledge.md "## Popis"
   const techSection = document.querySelector('.tech-section');
