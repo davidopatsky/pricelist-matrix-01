@@ -1715,9 +1715,32 @@ function showProduct(product) {
   buildInstallGroups(product);
 
   // Normalize: every product is an array of sections
-  const sections = product.multiMatrix
+  let sections = product.multiMatrix
     ? product.matrices
     : [{ label: null, horizontalValues: product.horizontalValues, verticalValues: product.verticalValues, prices: product.prices, options: product.options || {} }];
+
+  // Per-product depth cap: hide rows above a max hloubka (e.g. ALUX Thermo ≤ 5500 mm)
+  const maxDepthRules = { 'alux-thermo': 5500 };
+  const maxDepth = maxDepthRules[product.id];
+  if (maxDepth != null) {
+    sections = sections.map(sec => {
+      const idx = [];
+      sec.verticalValues.forEach((h, i) => { if (h <= maxDepth) idx.push(i); });
+      const newOptions = {};
+      if (sec.options) {
+        for (const k of Object.keys(sec.options)) {
+          const arr = sec.options[k];
+          newOptions[k] = Array.isArray(arr) ? idx.map(i => arr[i]) : arr;
+        }
+      }
+      return {
+        ...sec,
+        verticalValues: idx.map(i => sec.verticalValues[i]),
+        prices: idx.map(i => sec.prices[i]),
+        options: sec.options ? newOptions : sec.options,
+      };
+    });
+  }
 
   const hLabel = product.horizontalLabel || 'šířka';
   const vLabel = product.verticalLabel || 'výška';
