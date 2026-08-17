@@ -1326,16 +1326,35 @@ Je nutné zákazníka vždy obeznámit:
 - kvůli hrubosti a nerovnosti fasády je tmelení pouze dočasné
 - ⚠️ aktuálně od 22.7.2026 oplechování **nenabízíme** a nenabízíme ani zprostředkování`;
 
+// Fetch with retry — GitHub raw CDN occasionally returns transient 5xx/429
+// ("Backend.max_conn reached"). Retry a few times with backoff before failing.
+async function fetchWithRetry(url, tries = 4) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (r.ok) return r;
+      if ([429, 500, 502, 503, 504].includes(r.status) && i < tries - 1) {
+        await new Promise(res => setTimeout(res, 500 * (i + 1) * (i + 1)));
+        continue;
+      }
+      throw new Error(`GitHub ${r.status} pro ${url}`);
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) { await new Promise(res => setTimeout(res, 500 * (i + 1) * (i + 1))); continue; }
+    }
+  }
+  throw lastErr || new Error(`Fetch selhal: ${url}`);
+}
+
 async function ghFetchJson(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`GitHub ${r.status} pro ${url}`);
+  const r = await fetchWithRetry(url);
   return r.json();
 }
 
 async function ghFetchText(url) {
-  const r = await fetch(url);
-  if (!r.ok) return '';
-  return r.text();
+  try { const r = await fetchWithRetry(url); return r.text(); }
+  catch (e) { return ''; }
 }
 
 // Parse knowledge.md → { sections: [{heading, body}] }
@@ -1548,9 +1567,13 @@ async function loadCatalog() {
     buildInstallGroups();
     showProduct(allProducts[0]);
   } catch (err) {
-    document.getElementById('productName').textContent = 'Chyba načítání dat';
+    document.getElementById('productName').textContent = 'Data se nepodařilo načíst';
     document.getElementById('productIntro').innerHTML =
-      `<div class="intro-card"><div class="intro-icon">!</div><div class="intro-body">${err.message}</div></div>`;
+      `<div class="intro-card"><div class="intro-icon">!</div><div class="intro-body">` +
+      `<p>Zdroj cen (GitHub) je momentálně nedostupný nebo přetížený.</p>` +
+      `<p style="color:var(--text-dim);font-size:12px">${err.message}</p>` +
+      `<button onclick="location.reload()" style="margin-top:10px;padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Zkusit znovu</button>` +
+      `</div></div>`;
   }
 }
 
