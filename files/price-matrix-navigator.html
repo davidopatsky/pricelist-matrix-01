@@ -1418,13 +1418,23 @@ const GH_RAW  = 'https://raw.githubusercontent.com/davidopatsky/pricelist-01/mai
 const DEFAULT_RATES = [12, 13, 14, 15];
 
 // ─── ACCESS + BUILD ───
-// Cosmetic access gate (page is public → password is readable in source).
-const APP_PASSWORD = 'David1';
+// Cosmetic access gate (page is public → passwords are readable in source).
+// One password per person. Compared lowercased+trimmed, so case does not matter.
+// Removing someone here logs them out; bump AUTH_VERSION to log out everyone.
+const APP_USERS = {
+  'irankova26': 'Slavka Iránková',
+  'cach26':     'Patrik Cach',
+  'pistelak26': 'Zbyněk Pištelák',
+  'fryba26':    'Lukáš Frýba',
+  'lokaj26':    'David Lokaj',
+  'klucka26':   'Petr Klučka',
+};
+const AUTH_VERSION = 2;
 const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20260922-161225';
+const BUILD_VERSION = '20260922-161745';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -2553,21 +2563,22 @@ function startVersionWatch() {
 // ─── LOGIN GATE ───
 // NOTE: cosmetic gate only. The page is public, so the password is readable
 // in the page source — it keeps casual visitors out, it is not real security.
+const normPassword = s => String(s || '').trim().toLowerCase();
+
 // Login is remembered for AUTH_TTL_DAYS, so users are not asked every visit.
-// Changing APP_PASSWORD invalidates every stored login.
 function isAuthed() {
   try {
     const raw = localStorage.getItem(AUTH_KEY);
     if (!raw) return false;
-    const { pw, at } = JSON.parse(raw);
-    if (pw !== APP_PASSWORD) return false;
+    const { u, v, at } = JSON.parse(raw);
+    if (v !== AUTH_VERSION || !APP_USERS[u]) return false;
     return (Date.now() - at) < AUTH_TTL_DAYS * 24 * 60 * 60 * 1000;
   } catch (e) { return false; }
 }
 
-function rememberAuth() {
+function rememberAuth(user) {
   try {
-    localStorage.setItem(AUTH_KEY, JSON.stringify({ pw: APP_PASSWORD, at: Date.now() }));
+    localStorage.setItem(AUTH_KEY, JSON.stringify({ u: user, v: AUTH_VERSION, at: Date.now() }));
   } catch (e) {}
 }
 
@@ -2580,8 +2591,9 @@ function showLogin() {
   setTimeout(() => input.focus(), 50);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (input.value === APP_PASSWORD) {
-      rememberAuth();
+    const entered = normPassword(input.value);
+    if (APP_USERS[entered]) {
+      rememberAuth(entered);
       startApp();
     } else {
       error.classList.add('visible');
