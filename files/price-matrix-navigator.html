@@ -1125,6 +1125,110 @@
     thead th { padding: 5px 8px; }
     tbody th { padding: 5px 8px; }
   }
+  /* ── LOGIN GATE ── */
+  .login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: var(--bg);
+    display: flex;               /* shown by default → no flash of content */
+    align-items: center;
+    justify-content: center;
+  }
+  .login-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 34px 36px 28px;
+    width: 340px;
+    max-width: calc(100% - 32px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .login-card.shake { animation: loginShake 0.3s ease; }
+  @keyframes loginShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-7px); }
+    75% { transform: translateX(7px); }
+  }
+  .login-logo {
+    height: 26px;
+    filter: invert(1) hue-rotate(180deg) brightness(1.5);
+    margin-bottom: 2px;
+  }
+  .login-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+  .login-input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    text-align: center;
+    outline: none;
+  }
+  .login-input:focus { border-color: var(--accent); }
+  .login-btn {
+    width: 100%;
+    padding: 11px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .login-btn:hover { background: #6bb0ff; }
+  .login-error {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: #ef4444;
+    visibility: hidden;
+  }
+  .login-error.visible { visibility: visible; }
+
+  /* ── UPDATE BANNER ── */
+  .update-banner {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 400;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+  .update-banner button {
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+
   .disclaimer-bar {
     position: fixed;
     top: 0;
@@ -1155,6 +1259,16 @@
 </style>
 </head>
 <body>
+
+<div class="login-overlay" id="loginOverlay">
+  <form class="login-card" id="loginForm">
+    <img src="../files/alux-logo.png" class="login-logo" alt="ALUX">
+    <div class="login-title">Ceník — přístup</div>
+    <input type="password" id="loginInput" class="login-input" placeholder="Heslo" autocomplete="current-password">
+    <button type="submit" class="login-btn">Vstoupit</button>
+    <div class="login-error" id="loginError">Nesprávné heslo</div>
+  </form>
+</div>
 
 <div class="disclaimer-bar">Pozor, ceník již nepočítá se stojnami v ceně, takže ty kalkulovat za plnou cenu.</div>
 <div class="top-bar" id="topBar"></div>
@@ -1302,6 +1416,15 @@ function mdToHtml(md) {
 const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const GH_RAW  = 'https://raw.githubusercontent.com/davidopatsky/pricelist-01/main';
 const DEFAULT_RATES = [12, 13, 14, 15];
+
+// ─── ACCESS + BUILD ───
+// Cosmetic access gate (page is public → password is readable in source).
+const APP_PASSWORD = 'David1';
+const AUTH_KEY = 'pricelist_auth';
+// How long a login stays valid before asking again (days).
+const AUTH_TTL_DAYS = 30;
+// Bumped automatically by bump-version.sh on each deploy; must match version.txt.
+const BUILD_VERSION = '20260922-161225';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -2380,26 +2503,107 @@ function reloadAfterSave(data) {
 }
 
 // ─── VERSION CHECK ───
-// On open: check GitHub for latest deployed commit. If our URL doesn't carry
-// the latest sha, replace the URL once → forces fresh fetch (bypasses cache).
-// Does NOT auto-refresh during use. Runs only on Pages, not localhost.
-(async () => {
-  if (IS_LOCAL) return;
+// Reads version.txt from the deployed site (no GitHub API → no rate limits).
+// On open: if a newer build exists, reload immediately with a cache-busting ?v=.
+// While the app is open: only show a banner — never reload under the user's hands.
+async function fetchDeployedVersion() {
   try {
-    const r = await fetch('https://api.github.com/repos/davidopatsky/pricelist-matrix-01/commits/main?per_page=1', { cache: 'no-store' });
-    if (!r.ok) return;
-    const sha = ((await r.json()).sha || '').slice(0, 7);
-    if (!sha) return;
-    const url = new URL(location.href);
-    if (url.searchParams.get('v') !== sha) {
-      url.searchParams.set('v', sha);
-      location.replace(url.toString());
+    const r = await fetch(`../version.txt?t=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const v = (await r.text()).trim();
+    return v && v.length < 64 ? v : null;
+  } catch (e) { return null; }
+}
+
+function reloadToVersion(v) {
+  const url = new URL(location.href);
+  url.searchParams.set('v', v);
+  location.replace(url.toString());
+}
+
+// Called once on open — safe to reload, the user is not mid-task yet.
+async function versionCheckOnOpen() {
+  if (IS_LOCAL) return;
+  const latest = await fetchDeployedVersion();
+  if (latest && latest !== BUILD_VERSION) reloadToVersion(latest);
+}
+
+// Called periodically while open — non-intrusive banner only.
+function showUpdateBanner(latest) {
+  if (document.getElementById('updateBanner')) return;
+  const b = document.createElement('div');
+  b.id = 'updateBanner';
+  b.className = 'update-banner';
+  b.innerHTML = `<span>Je k dispozici nová verze ceníku.</span>`;
+  const btn = document.createElement('button');
+  btn.textContent = 'Obnovit';
+  btn.addEventListener('click', () => reloadToVersion(latest));
+  b.appendChild(btn);
+  document.body.appendChild(b);
+}
+
+function startVersionWatch() {
+  if (IS_LOCAL) return;
+  setInterval(async () => {
+    const latest = await fetchDeployedVersion();
+    if (latest && latest !== BUILD_VERSION) showUpdateBanner(latest);
+  }, 3 * 60 * 1000);
+}
+
+// ─── LOGIN GATE ───
+// NOTE: cosmetic gate only. The page is public, so the password is readable
+// in the page source — it keeps casual visitors out, it is not real security.
+// Login is remembered for AUTH_TTL_DAYS, so users are not asked every visit.
+// Changing APP_PASSWORD invalidates every stored login.
+function isAuthed() {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) return false;
+    const { pw, at } = JSON.parse(raw);
+    if (pw !== APP_PASSWORD) return false;
+    return (Date.now() - at) < AUTH_TTL_DAYS * 24 * 60 * 60 * 1000;
+  } catch (e) { return false; }
+}
+
+function rememberAuth() {
+  try {
+    localStorage.setItem(AUTH_KEY, JSON.stringify({ pw: APP_PASSWORD, at: Date.now() }));
+  } catch (e) {}
+}
+
+function showLogin() {
+  const overlay = document.getElementById('loginOverlay');
+  const form = document.getElementById('loginForm');
+  const input = document.getElementById('loginInput');
+  const error = document.getElementById('loginError');
+  overlay.style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (input.value === APP_PASSWORD) {
+      rememberAuth();
+      startApp();
+    } else {
+      error.classList.add('visible');
+      input.value = '';
+      input.focus();
+      form.classList.remove('shake');
+      void form.offsetWidth;
+      form.classList.add('shake');
     }
-  } catch (e) { /* offline or rate-limited — silently skip */ }
-})();
+  });
+}
+
+function startApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  loadCatalog();
+  startVersionWatch();
+}
 
 // ─── START ───
-loadCatalog();
+versionCheckOnOpen();
+if (isAuthed()) startApp();
+else showLogin();
 </script>
 
 </body>
