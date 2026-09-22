@@ -47,7 +47,7 @@
   /* ── TOP NAV ── */
   .top-bar {
     position: fixed;
-    top: 28px;
+    top: 0;
     left: 0;
     right: 0;
     height: 62px;
@@ -110,7 +110,7 @@
   /* ── MAIN AREA (scrollable) ── */
   .main {
     position: fixed;
-    top: 90px;
+    top: 62px;
     left: 0;
     right: 0;
     bottom: 0;
@@ -1076,7 +1076,7 @@
   /* 13" MacBook (1440×900 / 1470×956) */
   @media (max-height: 900px) {
     .top-bar { height: 46px; }
-    .main { top: 74px; }
+    .main { top: 46px; }
     .admin-overlay { top: 46px; }
     .admin-panel { padding: 16px; margin: 12px; }
     .admin-title { font-size: 15px; }
@@ -1229,33 +1229,6 @@
     cursor: pointer;
   }
 
-  .disclaimer-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 200;
-    background: #1a0000;
-    border-bottom: 1px solid #4a0000;
-    padding: 5px 20px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #ef4444;
-    letter-spacing: 0.02em;
-    line-height: 1.35;
-  }
-
-  /* Mobile portrait: disclaimer wraps to 2-3 lines, push everything down */
-  @media (max-width: 768px) and (orientation: portrait) {
-    .disclaimer-bar { font-size: 12px; padding: 6px 12px; }
-    .top-bar { top: 62px; }
-    .main { top: 124px; }
-  }
-  @media (max-width: 480px) and (orientation: portrait) {
-    .top-bar { top: 78px; }
-    .main { top: 140px; }
-  }
 </style>
 </head>
 <body>
@@ -1269,8 +1242,6 @@
     <div class="login-error" id="loginError">Nesprávné heslo</div>
   </form>
 </div>
-
-<div class="disclaimer-bar">Pozor, ceník již nepočítá se stojnami v ceně, takže ty kalkulovat za plnou cenu.</div>
 <div class="top-bar" id="topBar"></div>
 
 <div class="admin-overlay" id="adminOverlay">
@@ -1437,7 +1408,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20260922-161930';
+const BUILD_VERSION = '20260922-162129';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
