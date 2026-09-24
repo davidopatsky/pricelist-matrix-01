@@ -8,7 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Ceník produktů</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -17,15 +17,18 @@
     --bg-surface: #16181c;
     --bg-elevated: #1e2025;
     --border: #2a2d35;
-    --border-subtle: #22252b;
-    --text: #e4e5e9;
-    --text-muted: #7a7e89;
-    --text-dim: #50545e;
+    --border-subtle: #2a2e37;
+    --text: #eceef3;
+    --text-muted: #9095a4;
+    --text-dim: #6b7082;
     --accent: #4a9eff;
-    --highlight-row: rgba(74, 158, 255, 0.12);
-    --highlight-col: rgba(74, 158, 255, 0.12);
-    --highlight-cell: rgba(74, 158, 255, 0.25);
-    --copied-flash: rgba(74, 158, 255, 0.3);
+    --highlight-row: rgba(74, 158, 255, 0.20);
+    --highlight-col: rgba(74, 158, 255, 0.20);
+    --highlight-cell: #4a9eff;
+    --highlight-cell-text: #06101f;
+    --highlight-head: #2f6fc4;
+    --zebra: rgba(255, 255, 255, 0.028);
+    --copied-flash: rgba(125, 190, 255, 0.55);
     --header-bg: #1a1d24;
     --corner-bg: #1a1d24;
     --tab-inactive: #7a7e89;
@@ -217,7 +220,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 13px;
     font-weight: 700;
     font-style: italic;
@@ -311,7 +315,8 @@
   .surcharge-value {
     color: var(--accent);
     font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 14px;
     white-space: nowrap;
   }
@@ -354,7 +359,8 @@
     margin-bottom: 6px;
   }
   .tariff-percent {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 16px;
     font-weight: 600;
     color: var(--text);
@@ -395,7 +401,8 @@
     padding-bottom: 6px;
   }
   .tariff-table td.tariff-price {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 12px;
     color: var(--text-muted);
     white-space: nowrap;
@@ -473,7 +480,8 @@
     top: 0;
     z-index: 20;
     background: var(--header-bg);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: clamp(11px, 1vw, 13px);
     font-weight: 600;
     color: #c8cbda;
@@ -482,8 +490,8 @@
     user-select: none;
   }
   thead th.col-highlight {
-    background: var(--bg-elevated);
-    color: var(--accent);
+    background: var(--highlight-head) !important;
+    color: #fff !important;
   }
 
   tbody th {
@@ -491,7 +499,8 @@
     left: 0;
     z-index: 10;
     background: var(--header-bg);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: clamp(11px, 1vw, 13px);
     font-weight: 600;
     color: #c8cbda;
@@ -503,12 +512,13 @@
     width: 48px;
   }
   tbody th.row-highlight {
-    background: var(--bg-elevated);
-    color: var(--accent);
+    background: var(--highlight-head) !important;
+    color: #fff !important;
   }
 
   td {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: clamp(11px, 1vw, 13px);
     font-weight: 400;
     color: #f0f1f5;
@@ -519,6 +529,9 @@
     user-select: none;
     min-width: 36px;
   }
+
+  /* Zebra rows — on <tr>, so stojna/zip tints on <td> still layer on top */
+  tbody tr:nth-child(even) { background: var(--zebra); }
 
   /* Matrix footer row (e.g. lamela counts) */
   tfoot.matrix-footer td.footer-cell {
@@ -565,11 +578,11 @@
   td.col-highlight, td.pin-col { background: var(--highlight-col) !important; }
   td.cell-active, td.pin-cell {
     background: var(--highlight-cell) !important;
-    color: #fff;
-    font-weight: 500;
+    color: var(--highlight-cell-text) !important;
+    font-weight: 700;
   }
-  th.row-highlight, th.pin-row { background: var(--bg-elevated); color: var(--accent); }
-  th.col-highlight, th.pin-col { background: var(--bg-elevated); color: var(--accent); }
+  th.row-highlight, th.pin-row { background: var(--highlight-head) !important; color: #fff !important; }
+  th.col-highlight, th.pin-col { background: var(--highlight-head) !important; color: #fff !important; }
   td.copied-flash {
     background: var(--copied-flash) !important;
     transition: none;
@@ -782,7 +795,8 @@
     white-space: nowrap;
   }
   .sel-value {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 17px;
     font-weight: 500;
     color: var(--text);
@@ -852,7 +866,8 @@
     border: 1px solid var(--toast-border);
     border-radius: 8px;
     padding: 10px 18px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 13px;
     color: var(--accent);
     z-index: 200;
@@ -1047,7 +1062,8 @@
     border: 1px solid var(--border);
     border-radius: 5px;
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 13px;
     padding: 6px 10px;
     outline: none;
@@ -1172,7 +1188,8 @@
     border: 1px solid var(--border);
     background: var(--bg-elevated);
     color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-size: 15px;
     text-align: center;
     outline: none;
@@ -1409,7 +1426,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20260923-091058';
+const BUILD_VERSION = '20260924-091035';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
