@@ -279,6 +279,84 @@
     font-weight: 700;
   }
 
+  /* ── KUSOVÉ POLOŽKY (unit list tab) ──
+     Scoped overrides: the global th/td rules are tuned for the price matrix
+     (sticky 44px first column, centred, nowrap) and would break this table. */
+  .unit-list-section { padding: 12px 20px 24px; }
+  .unit-list-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 6px 8px;
+    width: fit-content;
+    max-width: 100%;
+  }
+  .unit-table thead th,
+  .unit-table thead th:first-child {
+    position: sticky;
+    top: 0;
+    left: auto;
+    z-index: 5;
+    width: auto;
+    min-width: 0;
+    background: var(--bg-surface);
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: left;
+    padding: 10px 14px 8px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .unit-table td {
+    min-width: 0;
+    padding: 7px 14px;
+    border-right: none;
+    font-size: 14px;
+    text-align: left;
+    cursor: default;
+  }
+  /* beats the global `tr:last-child th { border-bottom: none }` (thead has one row) */
+  .unit-table thead tr th { border-bottom: 1px solid var(--border); }
+  .unit-table th.num, .unit-table td.num { text-align: right; }
+  .unit-table td.unit-sku {
+    font-size: 12px;
+    color: var(--text-dim);
+    user-select: text;
+  }
+  .unit-table td.unit-name {
+    color: var(--text);
+    white-space: normal;
+    min-width: 280px;
+    max-width: 460px;
+    user-select: text;
+  }
+  .unit-table td.unit-price,
+  .unit-table td.unit-cost {
+    cursor: pointer;
+    transition: background 0.1s ease;
+  }
+  .unit-table td.unit-price { color: #fff; font-weight: 600; }
+  .unit-table td.unit-cost { color: #f97316; font-weight: 500; }
+  .unit-table td.unit-price:hover,
+  .unit-table td.unit-cost:hover { background: rgba(74, 158, 255, 0.18); }
+  .unit-table td.copied { background: var(--copied-flash) !important; }
+  .unit-table tr.unit-cat-row td {
+    padding: 18px 14px 7px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .unit-table tbody:first-of-type tr.unit-cat-row td { padding-top: 12px; }
+
   /* ── SURCHARGES (separate section) ── */
   .surcharge-section {
     padding: 12px 20px 0;
@@ -1310,6 +1388,9 @@
   <div class="static-info-section" id="staticInfoSection" style="display:none">
     <div class="static-info-card" id="staticInfoContent"></div>
   </div>
+  <div class="unit-list-section" id="unitListSection" style="display:none">
+    <div class="unit-list-card" id="unitListContent"></div>
+  </div>
   <div class="matrix-section" id="matrixSection">
     <div class="matrix-wrap" id="matrixWrap">
       <table id="matrixTable"></table>
@@ -1426,7 +1507,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20260924-091035';
+const BUILD_VERSION = '20260928-190628';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1523,6 +1604,91 @@ function findVariantDescription(knowledge, label) {
 }
 
 // ─── GITHUB SCHEMA TRANSFORMATIONS ───
+// ─── KUSOVÉ POLOŽKY (fixed per-unit prices, CONSUMERS.md §6) ───
+// Everything that is not a matrix and has a real price (1 = placeholder).
+function pickKusove(items) {
+  return items
+    .filter(it => it.price_formula !== 'matrix' && it.standard_price !== 1)
+    .map(it => ({
+      sku: it.sku, name: it.name, category: it.category, unit: it.unit,
+      price: it.standard_price, cost: it.cost,
+    }));
+}
+
+const UNIT_LABELS = { m2: 'm²', bm: 'bm', km: 'km' };
+const CATEGORY_LABELS = {
+  prislusenstvi: 'Příslušenství', elektro: 'Elektro', profily: 'Profily',
+  vypln: 'Výplně', sluzba: 'Služby', priplatky: 'Příplatky',
+};
+const CATEGORY_ORDER = ['prislusenstvi', 'elektro', 'profily', 'vypln', 'sluzba', 'priplatky'];
+
+// Price per unit — ks shows plain Kč, other units get a suffix (30 Kč/km).
+function fmtUnitPrice(n, unit) {
+  if (n == null) return '—';
+  const base = new Intl.NumberFormat('cs-CZ').format(n) + ' Kč';
+  return unit && unit !== 'ks' ? `${base}/${UNIT_LABELS[unit] || unit}` : base;
+}
+
+function makeCopyCell(value, unit, className) {
+  const td = document.createElement('td');
+  td.className = `num ${className}`;
+  td.textContent = fmtUnitPrice(value, unit);
+  if (value != null) {
+    td.title = 'Klikni pro zkopírování';
+    td.addEventListener('click', () => {
+      copyToClipboard(String(value));
+      showToast(`Zkopírováno: ${value}`);
+      td.classList.add('copied');
+      setTimeout(() => td.classList.remove('copied'), 400);
+    });
+  }
+  return td;
+}
+
+function renderUnitList(container, items) {
+  container.innerHTML = '';
+  // Group by category: known categories in a fixed order, unknown ones after.
+  const groups = new Map();
+  for (const it of items) {
+    if (!groups.has(it.category)) groups.set(it.category, []);
+    groups.get(it.category).push(it);
+  }
+  const cats = [...groups.keys()].sort((a, b) => {
+    const ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+
+  const table = document.createElement('table');
+  table.className = 'unit-table';
+  table.innerHTML = '<thead><tr><th>SKU</th><th>Název</th>'
+    + '<th class="num">Prodejní cena</th><th class="num">Náklad</th></tr></thead>';
+  for (const cat of cats) {
+    const tbody = document.createElement('tbody');
+    const head = document.createElement('tr');
+    head.className = 'unit-cat-row';
+    const headCell = document.createElement('td');
+    headCell.colSpan = 4;
+    headCell.textContent = CATEGORY_LABELS[cat] || cat;
+    head.appendChild(headCell);
+    tbody.appendChild(head);
+    for (const it of groups.get(cat)) {
+      const tr = document.createElement('tr');
+      const sku = document.createElement('td');
+      sku.className = 'unit-sku';
+      sku.textContent = it.sku;
+      const name = document.createElement('td');
+      name.className = 'unit-name';
+      name.textContent = it.name || '';
+      tr.append(sku, name,
+        makeCopyCell(it.price, it.unit, 'unit-price'),
+        makeCopyCell(it.cost, it.unit, 'unit-cost'));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+  }
+  container.appendChild(table);
+}
+
 // Build pergola lakování surcharges from their source SKUs.
 function buildPergolaSurcharges(items) {
   const out = [];
@@ -1644,7 +1810,7 @@ async function loadCatalog() {
         });
       }
       products.push(...matrixProducts);
-      catalog = { installationRates, products };
+      catalog = { installationRates, products, kusove: pickKusove(items) };
     }
 
     // Fetch prices.json and info.json for each product
@@ -1697,6 +1863,18 @@ async function loadCatalog() {
       pricingType: 'static-info',
       staticContent: STATIC_INFO_MD,
     });
+
+    // Append fixed-price items tab at the end of the navigation
+    if (catalog.kusove && catalog.kusove.length) {
+      allProducts.push({
+        id: 'kusove-polozky',
+        catalogName: 'Kusové položky',
+        name: 'Kusové položky',
+        displayName: 'Kusové položky',
+        pricingType: 'unit-list',
+        unitItems: catalog.kusove,
+      });
+    }
 
     buildNav(allProducts);
     buildInstallGroups();
@@ -1896,6 +2074,7 @@ function showProduct(product) {
   updateBadges(product);
 
   const staticInfoSection = document.getElementById('staticInfoSection');
+  const unitListSection = document.getElementById('unitListSection');
 
   // STATIC INFO view (Aktuální) — pure business text, no pricing
   if (product.pricingType === 'static-info') {
@@ -1908,10 +2087,28 @@ function showProduct(product) {
     document.getElementById('mainContent').classList.remove('bar-visible');
     document.getElementById('productSubtitle').textContent = 'Interní informace pro obchodníky';
     document.getElementById('staticInfoContent').innerHTML = mdToHtml(product.staticContent || '');
+    unitListSection.style.display = 'none';
     staticInfoSection.style.display = '';
     return;
   }
   staticInfoSection.style.display = 'none';
+
+  // UNIT LIST view (Kusové položky) — fixed per-unit prices, no matrix
+  if (product.pricingType === 'unit-list') {
+    document.getElementById('productIntro').innerHTML = '';
+    document.getElementById('matrixSection').style.display = 'none';
+    document.getElementById('tariffSection').style.display = 'none';
+    document.querySelector('.tech-section').style.display = 'none';
+    document.getElementById('surchargeSection').style.display = 'none';
+    document.getElementById('selectionBar').classList.remove('visible');
+    document.getElementById('mainContent').classList.remove('bar-visible');
+    document.getElementById('productSubtitle').textContent =
+      `${product.unitItems.length} položek s pevnou cenou — klikni na cenu pro zkopírování`;
+    renderUnitList(document.getElementById('unitListContent'), product.unitItems);
+    unitListSection.style.display = '';
+    return;
+  }
+  unitListSection.style.display = 'none';
 
   const introEl = document.getElementById('productIntro');
   introEl.innerHTML = product.description
