@@ -110,6 +110,78 @@
     font-weight: 600;
   }
 
+  /* Tabs are <button>s now: reset UA styles, but only font-family — the
+     `font` shorthand would override .nav-tab's size/weight. */
+  button.nav-tab {
+    font-family: inherit;
+    border: none;
+    background: transparent;
+  }
+
+  /* ── NAV GROUPS (tap-to-open dropdowns) ── */
+  .nav-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .nav-chevron {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+    opacity: 0.7;
+    transition: transform 0.15s ease;
+  }
+  .nav-group.open { color: #c8cbda; background: var(--bg-elevated); }
+  .nav-group.open .nav-chevron { transform: rotate(180deg); }
+  .nav-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 6px 6px 12px;
+    flex-shrink: 0;
+  }
+  .nav-dropdown {
+    position: fixed;
+    z-index: 300;
+    display: none;
+    min-width: 240px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  }
+  .nav-dropdown.open { display: block; }
+  .nav-dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .nav-dropdown-item:hover { background: rgba(255, 255, 255, 0.06); }
+  .nav-dropdown-item.active {
+    background: rgba(74, 158, 255, 0.18);
+    color: #fff;
+    font-weight: 600;
+  }
+  /* Phones: full-width sheet, bigger tap targets, long names wrap */
+  @media (max-width: 640px) {
+    .nav-dropdown { min-width: 0; }
+    .nav-dropdown-item { padding: 13px 16px; font-size: 16px; white-space: normal; }
+  }
+
   /* ── MAIN AREA (scrollable) ── */
   .main {
     position: fixed;
@@ -1507,7 +1579,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20260928-190628';
+const BUILD_VERSION = '20260928-192114';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1952,9 +2024,63 @@ function buildInstallGroups(product) {
 }
 
 // ─── NAV ───
+// Products are grouped by product line so the bar stays short. A group with
+// one product renders as a plain tab; bigger groups open a dropdown on tap
+// (no hover), so it behaves the same on phones, tablets and desktop.
+const NAV_GROUPS = [
+  { id: 'alux',     label: 'ALUX pergoly' },
+  { id: 'strada',   label: 'Strada pergoly' },
+  { id: 'zaskleni', label: 'Zasklení' },
+  { id: 'stineni',  label: 'Stínění' },
+  { id: 'ostatni',  label: 'Ostatní' },   // fallback — new products land here
+];
+
+// Order matters: ALUX screen/zasklení/blind must be caught before the alux- rule.
+function navGroupOf(p) {
+  const id = p.id || '';
+  if (id.includes('zaskleni')) return 'zaskleni';
+  if (/screen|blind|slunolam|lamely|markyza/.test(id)) return 'stineni';
+  if (id.startsWith('alux-')) return 'alux';
+  if (id.startsWith('strada-')) return 'strada';
+  return 'ostatni';
+}
+
+let navItems = [];          // [{ el, productIds }] — drives the active state
+let openNavGroupBtn = null;
+
+function setActiveNav(productId) {
+  navItems.forEach(({ el, productIds }) =>
+    el.classList.toggle('active', productIds.includes(productId)));
+}
+
+function selectProduct(p) {
+  closeNavDropdown();
+  setActiveNav(p.id);
+  showProduct(p);
+  document.getElementById('selectionBar').classList.remove('visible');
+}
+
+function makeNavTab(product) {
+  const tab = document.createElement('button');
+  tab.type = 'button';
+  tab.className = 'nav-tab';
+  tab.textContent = product.catalogName || product.name;
+  tab.addEventListener('click', () => selectProduct(product));
+  navItems.push({ el: tab, productIds: [product.id] });
+  return tab;
+}
+
+function makeNavSep() {
+  const sep = document.createElement('div');
+  sep.className = 'nav-sep';
+  return sep;
+}
+
 function buildNav(products) {
   const bar = document.getElementById('topBar');
   bar.innerHTML = '';
+  navItems = [];
+  closeNavDropdown();
 
   const logo = document.createElement('img');
   logo.src = '../files/alux-logo.png';
@@ -1966,19 +2092,36 @@ function buildNav(products) {
   divider.className = 'top-logo-divider';
   bar.appendChild(divider);
 
-  products.forEach((p, i) => {
-    const tab = document.createElement('div');
-    tab.className = 'nav-tab' + (i === 0 ? ' active' : '');
-    tab.textContent = p.catalogName || p.name;
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.nav-tab').forEach((t, j) =>
-        t.classList.toggle('active', j === i)
-      );
-      showProduct(p);
-      document.getElementById('selectionBar').classList.remove('visible');
+  const isLeading = p => p.pricingType === 'static-info' || p.pricingType === 'percent-tariff';
+  const isTrailing = p => p.pricingType === 'unit-list';
+  const leading = products.filter(isLeading);
+  const trailing = products.filter(isTrailing);
+  const grouped = products.filter(p => !isLeading(p) && !isTrailing(p));
+
+  leading.forEach(p => bar.appendChild(makeNavTab(p)));
+  if (leading.length && grouped.length) bar.appendChild(makeNavSep());
+
+  for (const g of NAV_GROUPS) {
+    const members = grouped.filter(p => navGroupOf(p) === g.id);
+    if (!members.length) continue;
+    if (members.length === 1) { bar.appendChild(makeNavTab(members[0])); continue; }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'nav-tab nav-group';
+    btn.setAttribute('aria-haspopup', 'true');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = `<span>${g.label}</span><span class="nav-chevron" aria-hidden="true"></span>`;
+    btn.addEventListener('click', () => {
+      if (openNavGroupBtn === btn) closeNavDropdown();
+      else openNavDropdown(btn, members);
     });
-    bar.appendChild(tab);
-  });
+    navItems.push({ el: btn, productIds: members.map(p => p.id) });
+    bar.appendChild(btn);
+  }
+
+  if (trailing.length && grouped.length) bar.appendChild(makeNavSep());
+  trailing.forEach(p => bar.appendChild(makeNavTab(p)));
 
   // Admin toggle button
   const adminBtn = document.createElement('div');
@@ -1987,7 +2130,88 @@ function buildNav(products) {
   adminBtn.innerHTML = '⚙ Nastavení';
   adminBtn.addEventListener('click', toggleAdmin);
   bar.appendChild(adminBtn);
+
+  if (products.length) setActiveNav(products[0].id);
 }
+
+// ─── NAV DROPDOWN ───
+// One shared panel on <body>: the top bar scrolls horizontally with
+// overflow hidden, so a panel inside it would get clipped.
+function getNavDropdown() {
+  let panel = document.getElementById('navDropdown');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'navDropdown';
+    panel.className = 'nav-dropdown';
+    panel.setAttribute('role', 'menu');
+    document.body.appendChild(panel);
+  }
+  return panel;
+}
+
+function openNavDropdown(btn, members) {
+  closeNavDropdown();
+  const panel = getNavDropdown();
+  panel.innerHTML = '';
+  const activeId = currentProduct && currentProduct.id;
+  for (const p of members) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'nav-dropdown-item' + (p.id === activeId ? ' active' : '');
+    item.setAttribute('role', 'menuitem');
+    item.textContent = p.catalogName || p.name;
+    item.addEventListener('click', () => selectProduct(p));
+    panel.appendChild(item);
+  }
+  panel.classList.add('open');
+  btn.classList.add('open');
+  btn.setAttribute('aria-expanded', 'true');
+  openNavGroupBtn = btn;
+  positionNavDropdown();
+}
+
+function positionNavDropdown() {
+  if (!openNavGroupBtn) return;
+  const panel = getNavDropdown();
+  const r = openNavGroupBtn.getBoundingClientRect();
+  const bar = document.getElementById('topBar').getBoundingClientRect();
+  // Button swiped fully out of the bar's visible area → the panel would float
+  // detached from anything, so close it.
+  if (r.right <= bar.left || r.left >= bar.right) { closeNavDropdown(); return; }
+  if (window.innerWidth < 640) {          // phones: full-width sheet under the bar
+    panel.style.top = `${Math.round(bar.bottom + 4)}px`;
+    panel.style.left = '8px';
+    panel.style.right = '8px';
+  } else {                                // under the button, kept on screen
+    panel.style.top = `${Math.round(r.bottom + 4)}px`;
+    panel.style.right = 'auto';
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - panel.offsetWidth - 8);
+    panel.style.left = `${Math.round(left)}px`;
+  }
+}
+
+function closeNavDropdown() {
+  const panel = document.getElementById('navDropdown');
+  if (panel) panel.classList.remove('open');
+  if (openNavGroupBtn) {
+    openNavGroupBtn.classList.remove('open');
+    openNavGroupBtn.setAttribute('aria-expanded', 'false');
+  }
+  openNavGroupBtn = null;
+}
+
+// Close on outside tap or Escape. Nav scroll and resize only reposition the
+// panel: tapping a half-visible button can make the browser scroll the bar,
+// and closing on that would make the dropdown vanish right after opening.
+document.addEventListener('pointerdown', (e) => {
+  if (!openNavGroupBtn) return;
+  const panel = document.getElementById('navDropdown');
+  if ((panel && panel.contains(e.target)) || openNavGroupBtn.contains(e.target)) return;
+  closeNavDropdown();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNavDropdown(); });
+document.getElementById('topBar').addEventListener('scroll', positionNavDropdown, { passive: true });
+window.addEventListener('resize', positionNavDropdown);
 
 // ─── RENDER PRODUCT ───
 // ─── TARIFF (MONTÁŽ) RENDERER ───
