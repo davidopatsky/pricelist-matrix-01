@@ -1366,35 +1366,6 @@
   }
   .login-error.visible { visibility: visible; }
 
-  /* ── UPDATE BANNER ── */
-  .update-banner {
-    position: fixed;
-    right: 18px;
-    bottom: 18px;
-    z-index: 400;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--accent);
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    color: var(--text);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  }
-  .update-banner button {
-    border: none;
-    border-radius: 6px;
-    background: var(--accent);
-    color: #fff;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 6px 14px;
-    cursor: pointer;
-  }
 
 </style>
 </head>
@@ -1950,7 +1921,13 @@ async function loadCatalog() {
 
     buildNav(allProducts);
     buildInstallGroups();
-    showProduct(allProducts[0]);
+
+    // After an auto-refresh, land back on the product the user was viewing.
+    const restore = takeRestoreState();
+    const initial = (restore && allProducts.find(p => p.id === restore.tab)) || allProducts[0];
+    setActiveNav(initial.id);
+    showProduct(initial);
+    if (restore) showToast('Ceník aktualizován na novou verzi');
   } catch (err) {
     document.getElementById('productName').textContent = 'Data se nepodařilo načíst';
     document.getElementById('productIntro').innerHTML =
@@ -2925,10 +2902,17 @@ function reloadAfterSave(data) {
   }
 }
 
-// ─── VERSION CHECK ───
+// ─── VERSION CHECK / AUTO-REFRESH ───
 // Reads version.txt from the deployed site (no GitHub API → no rate limits).
-// On open: if a newer build exists, reload immediately with a cache-busting ?v=.
-// While the app is open: only show a banner — never reload under the user's hands.
+// A newer build reloads the app on its own, without asking — but never in the
+// middle of someone reading or copying a price:
+//   • on open or on returning to the tab → reload right away
+//   • tab in the background              → reload silently now
+//   • user active in the app             → wait until 15 s without input
+// After the reload the user lands on the same product.
+const RESTORE_KEY = 'pricelist_restore';
+const RELOAD_IDLE_MS = 15000;
+
 async function fetchDeployedVersion() {
   try {
     const r = await fetch(`../version.txt?t=${Date.now()}`, { cache: 'no-store' });
@@ -2938,39 +2922,75 @@ async function fetchDeployedVersion() {
   } catch (e) { return null; }
 }
 
+// True only for a build we have not already asked for. If the URL already
+// carries ?v=<latest> but we still run older code, the CDN is lagging —
+// reloading again would loop, so wait for the next check instead.
+function isNewBuild(latest) {
+  if (!latest || latest === BUILD_VERSION) return false;
+  return new URL(location.href).searchParams.get('v') !== latest;
+}
+
 function reloadToVersion(v) {
+  try {
+    sessionStorage.setItem(RESTORE_KEY, JSON.stringify({ tab: currentProduct ? currentProduct.id : null }));
+  } catch (e) {}
   const url = new URL(location.href);
   url.searchParams.set('v', v);
   location.replace(url.toString());
 }
 
-// Called once on open — safe to reload, the user is not mid-task yet.
+// Set by the previous page right before an auto-reload; read once.
+function takeRestoreState() {
+  try {
+    const raw = sessionStorage.getItem(RESTORE_KEY);
+    sessionStorage.removeItem(RESTORE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+let lastInteraction = Date.now();
+['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev =>
+  window.addEventListener(ev, () => { lastInteraction = Date.now(); }, { passive: true, capture: true }));
+
+let pendingVersion = null;
+let reloadTimer = null;
+
+function tryAutoReload() {
+  reloadTimer = null;
+  if (!pendingVersion) return;
+  const idleFor = Date.now() - lastInteraction;
+  if (document.hidden || idleFor >= RELOAD_IDLE_MS) { reloadToVersion(pendingVersion); return; }
+  reloadTimer = setTimeout(tryAutoReload, RELOAD_IDLE_MS - idleFor + 250);
+}
+
+function scheduleAutoReload(latest) {
+  pendingVersion = latest;
+  if (!reloadTimer) tryAutoReload();
+}
+
+// On open — the user is not mid-task yet, reload straight away.
 async function versionCheckOnOpen() {
   if (IS_LOCAL) return;
   const latest = await fetchDeployedVersion();
-  if (latest && latest !== BUILD_VERSION) reloadToVersion(latest);
-}
-
-// Called periodically while open — non-intrusive banner only.
-function showUpdateBanner(latest) {
-  if (document.getElementById('updateBanner')) return;
-  const b = document.createElement('div');
-  b.id = 'updateBanner';
-  b.className = 'update-banner';
-  b.innerHTML = `<span>Je k dispozici nová verze ceníku.</span>`;
-  const btn = document.createElement('button');
-  btn.textContent = 'Obnovit';
-  btn.addEventListener('click', () => reloadToVersion(latest));
-  b.appendChild(btn);
-  document.body.appendChild(b);
+  if (isNewBuild(latest)) reloadToVersion(latest);
 }
 
 function startVersionWatch() {
   if (IS_LOCAL) return;
   setInterval(async () => {
     const latest = await fetchDeployedVersion();
-    if (latest && latest !== BUILD_VERSION) showUpdateBanner(latest);
+    if (isNewBuild(latest)) scheduleAutoReload(latest);
   }, 3 * 60 * 1000);
+
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) {
+      if (pendingVersion) reloadToVersion(pendingVersion);   // nobody is looking
+      return;
+    }
+    // Back on the tab (e.g. from Raynet) — refresh before they start clicking.
+    const latest = await fetchDeployedVersion();
+    if (isNewBuild(latest)) reloadToVersion(latest);
+  });
 }
 
 // ─── LOGIN GATE ───
