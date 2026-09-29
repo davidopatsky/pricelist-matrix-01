@@ -1250,7 +1250,7 @@
     .admin-input.num { width: 60px; }
     .admin-table th { padding: 8px 10px; font-size: 10px; }
     .admin-table td { padding: 4px 6px; }
-    .nav-tab { padding: 5px 14px; font-size: 11px; }
+    .nav-tab { padding: 5px 12px; font-size: 11px; }
     .product-header { padding: 8px 16px 0; }
     .product-name { font-size: 16px; }
     .product-meta { margin-top: 2px; gap: 10px; }
@@ -1550,7 +1550,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20260928-192824';
+const BUILD_VERSION = '20260929-052851';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1907,6 +1907,20 @@ async function loadCatalog() {
       staticContent: STATIC_INFO_MD,
     });
 
+    // Fixed-price items that also appear in a nav group (see NAV_FIXED_ITEMS)
+    for (const sku of NAV_FIXED_ITEMS) {
+      const item = (catalog.kusove || []).find(k => k.sku === sku);
+      if (!item) continue;
+      allProducts.push({
+        id: item.sku,
+        catalogName: item.name,
+        name: item.name,
+        displayName: item.name,
+        pricingType: 'unit-list',
+        unitItems: [item],
+      });
+    }
+
     // Append fixed-price items tab at the end of the navigation
     if (catalog.kusove && catalog.kusove.length) {
       allProducts.push({
@@ -2004,22 +2018,38 @@ function buildInstallGroups(product) {
 // Products are grouped by product line so the bar stays short. A group with
 // one product renders as a plain tab; bigger groups open a dropdown on tap
 // (no hover), so it behaves the same on phones, tablets and desktop.
-const NAV_GROUPS = [
-  { id: 'alux',     label: 'ALUX pergoly' },
-  { id: 'strada',   label: 'Strada pergoly' },
-  { id: 'zaskleni', label: 'Zasklení' },
-  { id: 'stineni',  label: 'Stínění' },
-  { id: 'ostatni',  label: 'Ostatní' },   // fallback — new products land here
+// Nav layout between the leading tabs (Aktuální, Montáž) and Kusové položky.
+// A slot with a label is a dropdown group; a slot without one is a single
+// standalone product. A group left with one product renders as a plain tab.
+// `order` pins the order of the products inside a dropdown.
+const NAV_SLOTS = [
+  { key: 'alux',          label: 'ALUX pergoly' },
+  { key: 'strada',        label: 'Strada pergoly' },
+  { key: 'simple-ancona' },
+  { key: 'zaskleni',      label: 'Zasklení' },
+  { key: 'alux-screen' },
+  { key: 'markyzy',       label: 'Markýzy' },
+  { key: 'vyplne',        label: 'Výplně',
+    order: ['alux-blind', 'lamely-venys', 'vypln-slunolam-fix', 'pur-panel-stena'] },
 ];
 
-// Order matters: ALUX screen/zasklení/blind must be caught before the alux- rule.
-function navGroupOf(p) {
+// Fixed-price items that also sit in a nav group (fixní slunolam under
+// Výplně). They reuse the Kusové položky view showing just their own row.
+const NAV_FIXED_ITEMS = ['vypln-slunolam-fix'];
+
+// Which slot a product belongs to. Standalone products first, then specific
+// groups before the broad alux-/strada- prefixes (ALUX screen/zasklení/blind
+// would otherwise land in "ALUX pergoly"). null = no slot: the product still
+// gets a plain tab after the slots, so nothing ever disappears.
+function navSlotOf(p) {
   const id = p.id || '';
+  if (id === 'simple-ancona' || id === 'alux-screen') return id;
   if (id.includes('zaskleni')) return 'zaskleni';
-  if (/screen|blind|slunolam|lamely|markyza/.test(id)) return 'stineni';
+  if (id.startsWith('markyza')) return 'markyzy';
+  if (/blind|slunolam|venys|pur-panel/.test(id)) return 'vyplne';
   if (id.startsWith('alux-')) return 'alux';
   if (id.startsWith('strada-')) return 'strada';
-  return 'ostatni';
+  return null;
 }
 
 let navItems = [];          // [{ el, productIds }] — drives the active state
@@ -2070,7 +2100,7 @@ function buildNav(products) {
   bar.appendChild(divider);
 
   const isLeading = p => p.pricingType === 'static-info' || p.pricingType === 'percent-tariff';
-  const isTrailing = p => p.pricingType === 'unit-list';
+  const isTrailing = p => p.id === 'kusove-polozky';
   const leading = products.filter(isLeading);
   const trailing = products.filter(isTrailing);
   const grouped = products.filter(p => !isLeading(p) && !isTrailing(p));
@@ -2078,17 +2108,21 @@ function buildNav(products) {
   leading.forEach(p => bar.appendChild(makeNavTab(p)));
   if (leading.length && grouped.length) bar.appendChild(makeNavSep());
 
-  for (const g of NAV_GROUPS) {
-    const members = grouped.filter(p => navGroupOf(p) === g.id);
+  for (const slot of NAV_SLOTS) {
+    let members = grouped.filter(p => navSlotOf(p) === slot.key);
     if (!members.length) continue;
-    if (members.length === 1) { bar.appendChild(makeNavTab(members[0])); continue; }
+    if (slot.order) {
+      const rank = id => { const i = slot.order.indexOf(id); return i < 0 ? slot.order.length : i; };
+      members = [...members].sort((a, b) => rank(a.id) - rank(b.id));
+    }
+    if (!slot.label || members.length === 1) { members.forEach(p => bar.appendChild(makeNavTab(p))); continue; }
 
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'nav-tab nav-group';
     btn.setAttribute('aria-haspopup', 'true');
     btn.setAttribute('aria-expanded', 'false');
-    btn.innerHTML = `<span>${g.label}</span><span class="nav-chevron" aria-hidden="true"></span>`;
+    btn.innerHTML = `<span>${slot.label}</span><span class="nav-chevron" aria-hidden="true"></span>`;
     btn.addEventListener('click', () => {
       if (openNavGroupBtn === btn) closeNavDropdown();
       else openNavDropdown(btn, members);
@@ -2096,6 +2130,9 @@ function buildNav(products) {
     navItems.push({ el: btn, productIds: members.map(p => p.id) });
     bar.appendChild(btn);
   }
+
+  // Products no slot claims still get a tab — nothing ever disappears.
+  grouped.filter(p => navSlotOf(p) === null).forEach(p => bar.appendChild(makeNavTab(p)));
 
   if (trailing.length && grouped.length) bar.appendChild(makeNavSep());
   trailing.forEach(p => bar.appendChild(makeNavTab(p)));
@@ -2303,8 +2340,10 @@ function showProduct(product) {
     document.getElementById('surchargeSection').style.display = 'none';
     document.getElementById('selectionBar').classList.remove('visible');
     document.getElementById('mainContent').classList.remove('bar-visible');
+    const n = product.unitItems.length;
+    const polozek = n === 1 ? 'položka' : (n >= 2 && n <= 4 ? 'položky' : 'položek');
     document.getElementById('productSubtitle').textContent =
-      `${product.unitItems.length} položek s pevnou cenou — klikni na cenu pro zkopírování`;
+      `${n} ${polozek} s pevnou cenou — klikni na cenu pro zkopírování`;
     renderUnitList(document.getElementById('unitListContent'), product.unitItems);
     unitListSection.style.display = '';
     return;
