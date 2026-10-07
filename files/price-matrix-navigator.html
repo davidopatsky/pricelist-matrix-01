@@ -715,17 +715,20 @@
   td.stojna-4 { background: rgba(239, 68, 68, 0.40); }    /* strong red */
   td.stojna-5 { background: rgba(139, 92, 246, 0.42); }   /* violet */
   td.stojna-6 { background: rgba(34, 211, 238, 0.38); }   /* cyan */
-  td.stojna-7 { background: rgba(236, 72, 153, 0.38); }   /* pink — any other combination */
+  td.stojna-7 { background: rgba(34, 197, 94, 0.30); }    /* green — 2× + příčky */
+  td.stojna-8 { background: rgba(236, 72, 153, 0.38); }   /* pink — any other combination */
   thead th.stojna-3 { color: #fde047; background: rgba(245, 200, 40, 0.28); }
   thead th.stojna-4 { color: #fca5a5; background: rgba(239, 68, 68, 0.32); }
   thead th.stojna-5 { color: #c4b5fd; background: rgba(139, 92, 246, 0.32); }
   thead th.stojna-6 { color: #67e8f9; background: rgba(34, 211, 238, 0.30); }
-  thead th.stojna-7 { color: #f9a8d4; background: rgba(236, 72, 153, 0.30); }
+  thead th.stojna-7 { color: #86efac; background: rgba(34, 197, 94, 0.26); }
+  thead th.stojna-8 { color: #f9a8d4; background: rgba(236, 72, 153, 0.30); }
   tbody th.stojna-3 { color: #fde047; background: rgba(245, 200, 40, 0.28); }
   tbody th.stojna-4 { color: #fca5a5; background: rgba(239, 68, 68, 0.32); }
   tbody th.stojna-5 { color: #c4b5fd; background: rgba(139, 92, 246, 0.32); }
   tbody th.stojna-6 { color: #67e8f9; background: rgba(34, 211, 238, 0.30); }
-  tbody th.stojna-7 { color: #f9a8d4; background: rgba(236, 72, 153, 0.30); }
+  tbody th.stojna-7 { color: #86efac; background: rgba(34, 197, 94, 0.26); }
+  tbody th.stojna-8 { color: #f9a8d4; background: rgba(236, 72, 153, 0.30); }
 
   td.row-highlight, td.pin-row { background: var(--highlight-row) !important; }
   td.col-highlight, td.pin-col { background: var(--highlight-col) !important; }
@@ -759,7 +762,8 @@
   .stojna-legend .swatch-4 { background: rgba(239, 68, 68, 0.6); border: 1px solid #fca5a5; }
   .stojna-legend .swatch-5 { background: rgba(139, 92, 246, 0.6); border: 1px solid #c4b5fd; }
   .stojna-legend .swatch-6 { background: rgba(34, 211, 238, 0.55); border: 1px solid #67e8f9; }
-  .stojna-legend .swatch-7 { background: rgba(236, 72, 153, 0.55); border: 1px solid #f9a8d4; }
+  .stojna-legend .swatch-7 { background: rgba(34, 197, 94, 0.50); border: 1px solid #86efac; }
+  .stojna-legend .swatch-8 { background: rgba(236, 72, 153, 0.55); border: 1px solid #f9a8d4; }
   .stojna-legend .swatch-footer { background: rgba(74, 158, 255, 0.1); border: 1px solid rgba(74, 158, 255, 0.3); }
   .stojna-legend .legend-footer-note { font-style: italic; color: #7a8499; }
 
@@ -1554,7 +1558,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261007-123950';
+const BUILD_VERSION = '20261007-134032';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1799,17 +1803,13 @@ function ghTransformInfo(meta, sku, name, knowledge) {
 // vertical axis; a missing bound means unbounded. Example rule:
 //   { "stojny": 3, "pricky": true, "hloubka_od": 4500 }
 // Style codes (CSS .stojna-N): 3 = 3×, 4 = 4×, 5 = 3× + příčky,
-// 6 = 4× + příčky, 7 = any other combination.
-const ZONE_LABELS = {
-  3: '3× stojna', 4: '4× stojna',
-  5: '3× stojna + příčky mezi krokvemi', 6: '4× stojna + příčky mezi krokvemi',
-};
-
+// 6 = 4× + příčky, 7 = 2× + příčky, 8 = any other combination.
 function zoneCode(stojny, pricky) {
   if (!pricky && stojny <= 2) return 2;
+  if (stojny === 2) return 7;
   if (stojny === 3) return pricky ? 5 : 3;
   if (stojny === 4) return pricky ? 6 : 4;
-  return 7;
+  return 8;
 }
 
 // rules → { fn(w, h) → style code, labels: { code → legend text } }, or null.
@@ -1835,27 +1835,8 @@ function compileSupportZones(rules) {
   return { fn: (w, h) => { const hit = compiled.find(c => c.test(w, h)); return hit ? hit.code : 2; }, labels };
 }
 
-// TEMPORARY fallback: used only until pricelist-01 carries support_zones.
-// Once any product in the source has them, these are ignored entirely
-// (so deleting one product's zones in the source really removes them).
-// Delete this block after the source migration.
-const LEGACY_STOJNA_RULES = {
-  'alux-bioclimatic':     (w, h) => w >= 6100 ? 3 : 2,
-  'alux-carbo-dutinkovy': (w, h) => w > 6000 ? 3 : 2,
-  'alux-carbo-plny':      (w, h) => w > 6000 ? 3 : 2,
-  'alux-glass':           (w, h) => w > 6000 ? 3 : 2,
-  'alux-thermo':          (w, h) => w > 6000 ? 3 : 2,
-  'alux-trapez':          (w, h) => w > 6000 ? 3 : 2,
-  'strada-carbo-dutinkovy': (w, h) => h >= 4500 ? 5 : (w > 5000 ? 3 : 2),
-  'strada-carbo-plny':      (w, h) => h >= 4500 ? 5 : (w >= 4500 ? 3 : 2),
-  'strada-glass': (w, h) => h > 4000 ? 6 : (w >= 7000 ? 4 : ((w > 4000 || h > 3000) ? 3 : 2)),
-};
-let ZONES_FROM_SOURCE = false;
-
 function resolveZones(product) {
-  if (ZONES_FROM_SOURCE) return compileSupportZones(product.supportZones);
-  const legacy = LEGACY_STOJNA_RULES[product.id];
-  return legacy ? { fn: legacy, labels: ZONE_LABELS } : null;
+  return compileSupportZones(product.supportZones);
 }
 
 // ─── STATE ───
@@ -1966,7 +1947,6 @@ async function loadCatalog() {
     });
 
     allProducts = await Promise.all(fetches);
-    ZONES_FROM_SOURCE = allProducts.some(p => Array.isArray(p.supportZones));
 
     // Prepend static info tab (business info for sales — not from pricelist)
     allProducts.unshift({
