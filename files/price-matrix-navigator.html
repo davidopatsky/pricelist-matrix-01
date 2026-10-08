@@ -826,6 +826,10 @@
   .matrix-section-desc td li { margin-bottom: 4px; }
 
   /* Section title (multi-matrix variant label, spans full width) */
+  .section-title-text {
+    position: sticky;
+    left: 14px;
+  }
   .section-title-row .section-title {
     background: var(--bg-elevated) !important;
     color: var(--accent) !important;
@@ -1558,7 +1562,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261007-135353';
+const BUILD_VERSION = '20261008-064435';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1647,11 +1651,16 @@ function findVariantDescription(knowledge, label) {
   if (!knowledge?.sections || !label) return '';
   const norm = s => s.toLowerCase().replace(/[—–-]/g, '-').replace(/\(.*?\)/g, '').trim();
   const target = norm(label);
-  for (const sec of knowledge.sections) {
-    const h = norm(sec.heading);
-    if (h === target || h.includes(target) || target.includes(h)) return sec.body;
-  }
-  return '';
+  const heads = knowledge.sections.map(sec => ({ h: norm(sec.heading), body: sec.body }));
+  // Exact heading wins; otherwise whole-word containment either way, so a
+  // short label like "4D" never picks up the "2X4D" section.
+  const exact = heads.find(x => x.h === target);
+  if (exact) return exact.body;
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const has = (hay, needle) => !!needle &&
+    new RegExp(`(^|[^\\p{L}\\p{N}])${esc(needle)}($|[^\\p{L}\\p{N}])`, 'u').test(hay);
+  const loose = heads.find(x => has(x.h, target) || has(target, x.h));
+  return loose ? loose.body : '';
 }
 
 // ─── GITHUB SCHEMA TRANSFORMATIONS ───
@@ -2542,7 +2551,12 @@ function showProduct(product) {
       const titleTh = document.createElement('th');
       titleTh.setAttribute('colspan', totalCols);
       titleTh.className = 'section-title';
-      titleTh.textContent = sec.label;
+      // Text in a sticky span: the title row spans the whole (wide) table, so
+      // without it the variant name scrolls out of view horizontally.
+      const titleText = document.createElement('span');
+      titleText.className = 'section-title-text';
+      titleText.textContent = sec.label;
+      titleTh.appendChild(titleText);
       titleTr.appendChild(titleTh);
       titleTbody.appendChild(titleTr);
       table.appendChild(titleTbody);
