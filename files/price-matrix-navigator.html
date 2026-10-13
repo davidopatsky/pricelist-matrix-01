@@ -1017,7 +1017,13 @@
     color: var(--text-muted);
     white-space: nowrap;
     margin-right: 2px;
+    min-width: 0;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  .selection-bar .sel-value,
+  .selection-bar .sel-label { flex-shrink: 0; }
 
   /* ── TOAST ── */
   .toast {
@@ -1562,7 +1568,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261008-064435';
+const BUILD_VERSION = '20261013-105727';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1797,7 +1803,8 @@ function ghTransformPrices(raw, sku, knowledge) {
 function ghTransformInfo(meta, sku, name, knowledge) {
   const p = { id: sku, sku, order: 0, name: name || sku,
     horizontalLabel: meta?.axes?.horizontal?.label || 'šířka',
-    verticalLabel:   meta?.axes?.vertical?.label   || 'hloubka' };
+    verticalLabel:   meta?.axes?.vertical?.label   || 'hloubka',
+    axisUnit:        meta?.axes?.horizontal?.unit  || 'mm' };
   if (meta?.horizontal_footer) {
     p.horizontalFooter = { label: meta.horizontal_footer.label, values: meta.horizontal_footer.values };
   }
@@ -2509,7 +2516,9 @@ function showProduct(product) {
   // Subtitle
   if (sections.length > 1) {
     const totalCells = sections.reduce((s, m) => s + m.verticalValues.length * m.horizontalValues.length, 0);
-    document.getElementById('productSubtitle').textContent = `${sections.length} cenových tabulek — ${totalCells} hodnot`;
+    const nt = sections.length;
+    const tabulek = nt >= 2 && nt <= 4 ? 'cenové tabulky' : 'cenových tabulek';
+    document.getElementById('productSubtitle').textContent = `${nt} ${tabulek} — ${totalCells} hodnot`;
   } else {
     const s = sections[0];
     document.getElementById('productSubtitle').textContent = `${hLabel} → × ${vLabel} ↓ — ${s.verticalValues.length} × ${s.horizontalValues.length} hodnot`;
@@ -2522,8 +2531,9 @@ function showProduct(product) {
   table.innerHTML = '';
   wrap.querySelectorAll('.multi-matrix-block').forEach(el => el.remove());
 
-  // Compact width only for markyza-lewens-ancona
-  if (product.id === 'markyza-lewens-ancona') wrap.classList.add('compact');
+  // Compact corner (stacked axis labels) for the Lewens markýzy — long "(cm)"
+  // axis labels would otherwise widen the first column.
+  if (product.id.startsWith('markyza-lewens')) wrap.classList.add('compact');
   else wrap.classList.remove('compact');
 
   sections.forEach((sec, si) => {
@@ -2689,7 +2699,15 @@ function showProduct(product) {
 }
 
 // ─── MATRIX EVENTS ───
+// The table element is reused for every product, so listeners from the
+// previous render must go — otherwise each product switch stacks another
+// set, and stale handlers (holding the old product's sections) fire too.
+let matrixEventsAbort = null;
+
 function bindMatrixEvents(table, sections) {
+  if (matrixEventsAbort) matrixEventsAbort.abort();
+  matrixEventsAbort = new AbortController();
+  const signal = matrixEventsAbort.signal;
   let lastSi = -1, lastRow = -1, lastCol = -1;
   const wrap = document.getElementById('matrixWrap');
 
@@ -2732,9 +2750,9 @@ function bindMatrixEvents(table, sections) {
     clearHover();
     lastSi = si; lastRow = row; lastCol = col;
     highlight(si, row, col, 'hover');
-  });
+  }, { signal });
 
-  table.addEventListener('mouseleave', () => { lastSi = -1; lastRow = -1; lastCol = -1; clearHover(); });
+  table.addEventListener('mouseleave', () => { lastSi = -1; lastRow = -1; lastCol = -1; clearHover(); }, { signal });
 
   table.addEventListener('click', (e) => {
     const cell = e.target.closest('td[data-si]');
@@ -2757,22 +2775,40 @@ function bindMatrixEvents(table, sections) {
     cell.classList.add('copied-flash');
     setTimeout(() => cell.classList.remove('copied-flash'), 200);
     updateSelectionBar(name, width, depth, price, sec.label);
-  });
+  }, { signal });
 }
 
 // ─── SELECTION BAR ───
+// Size a read-only input to its text. Measured, not estimated in `ch`:
+// Inter is proportional, so character counts under-size longer values. A
+// hidden span with the same classes gets the exact same font, padding and
+// tabular-nums (a canvas measure ignores tabular-nums and under-sizes "1"s).
+function fitInput(input) {
+  const probe = document.createElement('span');
+  probe.className = input.className;
+  probe.textContent = input.value;
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;width:auto;min-width:0';
+  input.parentNode.appendChild(probe);
+  input.style.width = `${Math.ceil(probe.getBoundingClientRect().width) + 2}px`;
+  probe.remove();
+}
+
 function updateSelectionBar(name, width, depth, price, sectionLabel) {
-  document.getElementById('selProductName').textContent = name;
+  const nameEl = document.getElementById('selProductName');
+  nameEl.textContent = name;
+  nameEl.title = name;
   const dimsInput = document.getElementById('selDims');
-  const prefix = sectionLabel ? `${sectionLabel} ` : '';
-  dimsInput.value = `${prefix}${width} × ${depth} mm`;
-  const charLen = prefix.length + String(width).length + 3 + String(depth).length + 7;
-  dimsInput.style.width = `${charLen}ch`;
+  // Short variant codes (2D, 5D, 2X4D) stay with the dimensions; long variant
+  // names (markýzy) are already in the product name — don't repeat them.
+  const prefix = sectionLabel && sectionLabel.length <= 6 ? `${sectionLabel} ` : '';
+  const unit = (currentProduct && currentProduct.axisUnit) || 'mm';   // markýzy Lewens are in cm
+  dimsInput.value = `${prefix}${width} × ${depth} ${unit}`;
+  fitInput(dimsInput);
   dimsInput.onclick = () => copyFromInput(dimsInput);
 
   const priceInput = document.getElementById('selPrice');
   priceInput.value = price;
-  priceInput.style.width = `${String(price).length + 4}ch`;
+  fitInput(priceInput);
   priceInput.onclick = () => copyFromInput(priceInput);
 
   // Cost
@@ -2781,7 +2817,7 @@ function updateSelectionBar(name, width, depth, price, sectionLabel) {
   if (currentProduct.costPercent > 0) {
     const cost = Math.round(price * currentProduct.costPercent / 100);
     costInput.value = cost;
-    costInput.style.width = `${String(cost).length + 4}ch`;
+    fitInput(costInput);
     costInput.onclick = () => copyFromInput(costInput);
     costGroup.style.display = 'flex';
   } else {
@@ -2795,7 +2831,7 @@ function updateSelectionBar(name, width, depth, price, sectionLabel) {
       ? parseInt(fixed)
       : Math.round(price * parseInt(input.getAttribute('data-rate')) / 100);
     input.value = installPrice;
-    input.style.width = `${String(installPrice).length + 4}ch`;
+    fitInput(input);
   });
 
   document.getElementById('selectionBar').classList.add('visible');
