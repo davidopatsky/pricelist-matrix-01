@@ -1568,7 +1568,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261013-105727';
+const BUILD_VERSION = '20261019-173154';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1957,6 +1957,7 @@ async function loadCatalog() {
         costPercent: entry.costPercent || 0,
         deliveryWeeks: entry.deliveryWeeks || '',
         deliveryNote: entry.deliveryNote || '',
+        category: entry.category,
         montazFixed: entry.montazFixed ?? null,
         surcharges: entry.surcharges ?? null
       };
@@ -1973,20 +1974,6 @@ async function loadCatalog() {
       pricingType: 'static-info',
       staticContent: STATIC_INFO_MD,
     });
-
-    // Fixed-price items that also appear in a nav group (see NAV_FIXED_ITEMS)
-    for (const sku of NAV_FIXED_ITEMS) {
-      const item = (catalog.kusove || []).find(k => k.sku === sku);
-      if (!item) continue;
-      allProducts.push({
-        id: item.sku,
-        catalogName: item.name,
-        name: item.name,
-        displayName: item.name,
-        pricingType: 'unit-list',
-        unitItems: [item],
-      });
-    }
 
     // Append fixed-price items tab at the end of the navigation
     if (catalog.kusove && catalog.kusove.length) {
@@ -2091,18 +2078,15 @@ function buildInstallGroups(product) {
 // `order` pins the order of the products inside a dropdown.
 const NAV_SLOTS = [
   { key: 'alux',          label: 'ALUX pergoly' },
+  { key: 'maxi',          label: 'ALUX MAXI' },
   { key: 'strada',        label: 'Strada pergoly' },
   { key: 'simple-ancona' },
   { key: 'zaskleni',      label: 'Zasklení' },
   { key: 'alux-screen' },
   { key: 'markyzy',       label: 'Markýzy' },
   { key: 'vyplne',        label: 'Výplně',
-    order: ['alux-blind', 'lamely-venys', 'vypln-slunolam-fix', 'pur-panel-stena'] },
+    order: ['alux-blind', 'lamely-venys', 'vypln-slunolam-fix', 'vypln-pur-panel'] },
 ];
-
-// Fixed-price items that also sit in a nav group (fixní slunolam under
-// Výplně). They reuse the Kusové položky view showing just their own row.
-const NAV_FIXED_ITEMS = ['vypln-slunolam-fix'];
 
 // Which slot a product belongs to. Standalone products first, then specific
 // groups before the broad alux-/strada- prefixes (ALUX screen/zasklení/blind
@@ -2114,6 +2098,7 @@ function navSlotOf(p) {
   if (id.includes('zaskleni')) return 'zaskleni';
   if (id.startsWith('markyza')) return 'markyzy';
   if (/blind|slunolam|venys|pur-panel/.test(id)) return 'vyplne';
+  if (p.category === 'maxi' || id.startsWith('alux-maxi')) return 'maxi';
   if (id.startsWith('alux-')) return 'alux';
   if (id.startsWith('strada-')) return 'strada';
   return null;
@@ -2688,6 +2673,7 @@ function showProduct(product) {
     legend.innerHTML = items.join('');
     legend.classList.remove('hidden');
   } else {
+    legend.innerHTML = '';
     legend.classList.add('hidden');
   }
 
