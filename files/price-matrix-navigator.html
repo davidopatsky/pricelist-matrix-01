@@ -1583,7 +1583,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261020-124645';
+const BUILD_VERSION = '20261023-095541';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1907,7 +1907,7 @@ async function loadCatalog() {
         deliveryWeeks: it.delivery_weeks || '',
         deliveryNote: '',
         description: it.description || '',
-        montazFixed: it.sku === 'alux-screen' ? montazScreenPrice : null
+        montazFixed: isScreenSku(it.sku) ? montazScreenPrice : null
       }));
       // Bottom-bar montáž rates from montaz/prices.json (installation_rates)
       let installationRates = DEFAULT_RATES;
@@ -2091,13 +2091,17 @@ function buildInstallGroups(product) {
 // A slot with a label is a dropdown group; a slot without one is a single
 // standalone product. A group left with one product renders as a plain tab.
 // `order` pins the order of the products inside a dropdown.
+// Screen roller blinds: ALUX screen and the screen-* line (Screenové rolety A…).
+// They share fixed montáž (montaz-screen) and the highlighted 2400–2600 rows.
+function isScreenSku(sku) { return sku === 'alux-screen' || /^screen-/.test(sku || ''); }
+
 const NAV_SLOTS = [
   { key: 'alux',          label: 'ALUX pergoly' },
   { key: 'maxi',          label: 'MAXI' },
   { key: 'strada',        label: 'Strada pergoly' },
   { key: 'simple-ancona' },
   { key: 'zaskleni',      label: 'Zasklení' },
-  { key: 'alux-screen' },
+  { key: 'screen',        label: 'Screenové rolety', order: ['alux-screen', 'screen-a'] },
   { key: 'markyzy',       label: 'Markýzy' },
   { key: 'vyplne',        label: 'Výplně',
     order: ['alux-blind', 'lamely-venys', 'vypln-slunolam-fix', 'vypln-pur-panel'] },
@@ -2109,7 +2113,8 @@ const NAV_SLOTS = [
 // gets a plain tab after the slots, so nothing ever disappears.
 function navSlotOf(p) {
   const id = p.id || '';
-  if (id === 'simple-ancona' || id === 'alux-screen') return id;
+  if (id === 'simple-ancona') return id;
+  if (isScreenSku(id)) return 'screen';
   if (id.includes('zaskleni')) return 'zaskleni';
   if (id.startsWith('markyza')) return 'markyzy';
   if (/blind|slunolam|venys|pur-panel/.test(id)) return 'vyplne';
@@ -2505,7 +2510,7 @@ function showProduct(product) {
 
   const hLabel = product.horizontalLabel || 'šířka';
   const vLabel = product.verticalLabel || 'výška';
-  const isScreen = product.id === 'alux-screen';
+  const isScreen = isScreenSku(product.id);
   const screenHighlight = { 2400: 'zip-row-a', 2500: 'zip-row-b', 2600: 'zip-row-c' };
   const isZaskleni = product.id?.startsWith('alux-zaskleni');
   const zaskleniHighlight = { 2400: 'zip-row-a', 2500: 'zip-row-b', 2600: 'zip-row-c' };
