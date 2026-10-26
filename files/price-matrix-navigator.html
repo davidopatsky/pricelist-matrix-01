@@ -1583,7 +1583,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261023-095541';
+const BUILD_VERSION = '20261026-065105';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -2380,7 +2380,7 @@ function renderTariffView(container, product) {
 
 // Red warning shown above every product of a category (business rule text).
 const CATEGORY_WARNINGS = {
-  maxi: 'Nelze jako samostatně stojící bez stranového kotvení — jinak musí být na zaměřovacím protokolu podpis Martina Musila.',
+  maxi: 'Každý objednaný zaměřovací protokol musí potvrdit Martin Musil.',
 };
 
 function showProduct(product) {
