@@ -1583,7 +1583,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261026-070023';
+const BUILD_VERSION = '20261103-093406';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1876,6 +1876,9 @@ let allProducts = [];
 let currentProduct = null;
 let toastTimer = null;
 
+// Products temporarily hidden from the app (they stay in the source pricelist)
+const HIDDEN_SKUS = new Set(['screen-a']);
+
 // ─── LOAD CATALOG + PRICE & INFO FILES ───
 async function loadCatalog() {
   try {
@@ -1937,6 +1940,8 @@ async function loadCatalog() {
       products.push(...matrixProducts);
       catalog = { installationRates, products, kusove: pickKusove(items) };
     }
+
+    catalog.products = catalog.products.filter(e => !HIDDEN_SKUS.has(e.id));
 
     // Fetch prices.json and info.json for each product
     const fetches = catalog.products.map(async entry => {
