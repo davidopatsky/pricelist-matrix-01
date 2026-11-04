@@ -1084,7 +1084,7 @@
   }
 
   /* ── ADMIN PANEL ── */
-  .admin-toggle {
+  .admin-toggle, .refresh-btn {
     margin-left: auto;
     padding: 5px 12px;
     border-radius: 6px;
@@ -1100,7 +1100,10 @@
     gap: 5px;
     flex-shrink: 0;
   }
-  .admin-toggle:hover { color: var(--text); background: var(--bg-elevated); }
+  .admin-toggle:hover, .refresh-btn:hover { color: var(--text); background: var(--bg-elevated); }
+  .refresh-btn + .admin-toggle { margin-left: 0; }
+  button.refresh-btn { font-family: inherit; border: none; background: transparent; }
+  .refresh-time { font-size: 11px; opacity: 0.7; font-variant-numeric: tabular-nums; }
   .admin-toggle.open { color: #f97316; background: rgba(249, 115, 22, 0.1); }
 
   .admin-overlay {
@@ -1583,7 +1586,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261103-093406';
+const BUILD_VERSION = '20261104-094947';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -1875,6 +1878,7 @@ let catalog = null;
 let allProducts = [];
 let currentProduct = null;
 let toastTimer = null;
+let dataLoadedAt = null;   // when prices were fetched — drives the stale-data reload
 
 // Products temporarily hidden from the app (they stay in the source pricelist)
 const HIDDEN_SKUS = new Set(['screen-a']);
@@ -1984,6 +1988,7 @@ async function loadCatalog() {
     });
 
     allProducts = await Promise.all(fetches);
+    dataLoadedAt = Date.now();
 
     // Prepend static info tab (business info for sales — not from pricelist)
     allProducts.unshift({
@@ -2015,14 +2020,14 @@ async function loadCatalog() {
     const initial = (restore && allProducts.find(p => p.id === restore.tab)) || allProducts[0];
     setActiveNav(initial.id);
     showProduct(initial);
-    if (restore) showToast('Ceník aktualizován na novou verzi');
+    if (restore) showToast(RESTORE_TOASTS[restore.reason] || RESTORE_TOASTS.version);
   } catch (err) {
     document.getElementById('productName').textContent = 'Data se nepodařilo načíst';
     document.getElementById('productIntro').innerHTML =
       `<div class="intro-card"><div class="intro-icon">!</div><div class="intro-body">` +
       `<p>Zdroj cen (GitHub) je momentálně nedostupný nebo přetížený.</p>` +
       `<p style="color:var(--text-dim);font-size:12px">${err.message}</p>` +
-      `<button onclick="location.reload()" style="margin-top:10px;padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Zkusit znovu</button>` +
+      `<button onclick="reloadForFreshData('manual')" style="margin-top:10px;padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer">Zkusit znovu</button>` +
       `</div></div>`;
   }
 }
@@ -2213,6 +2218,16 @@ function buildNav(products) {
 
   if (trailing.length && grouped.length) bar.appendChild(makeNavSep());
   trailing.forEach(p => bar.appendChild(makeNavTab(p)));
+
+  // Force refresh — fresh page and fresh prices, past the browser cache
+  const refreshBtn = document.createElement('button');
+  refreshBtn.type = 'button';
+  refreshBtn.className = 'refresh-btn';
+  const loadedAt = new Date(dataLoadedAt).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
+  refreshBtn.title = `Ceny načteny v ${loadedAt} — kliknutím stáhneš nejnovější ceník`;
+  refreshBtn.innerHTML = `↻ Obnovit ceny <span class="refresh-time">${loadedAt}</span>`;
+  refreshBtn.addEventListener('click', () => reloadForFreshData('manual'));
+  bar.appendChild(refreshBtn);
 
   // Admin toggle button
   const adminBtn = document.createElement('div');
@@ -3047,8 +3062,19 @@ function reloadAfterSave(data) {
 //   • tab in the background              → reload silently now
 //   • user active in the app             → wait until 15 s without input
 // After the reload the user lands on the same product.
+//
+// Prices are fetched once per page load, so a tab left open for days would
+// keep old prices. Once they are older than DATA_MAX_AGE_MS the app reloads
+// the same way (on return to the tab, or after 15 s idle while visible).
+// "↻ Obnovit ceny" in the top bar does it on demand.
 const RESTORE_KEY = 'pricelist_restore';
 const RELOAD_IDLE_MS = 15000;
+const DATA_MAX_AGE_MS = 30 * 60 * 1000;
+const RESTORE_TOASTS = {
+  version: 'Ceník aktualizován na novou verzi',
+  stale:   'Ceny aktualizovány',
+  manual:  'Ceník obnoven — načteny aktuální ceny',
+};
 
 async function fetchDeployedVersion() {
   try {
@@ -3067,13 +3093,29 @@ function isNewBuild(latest) {
   return new URL(location.href).searchParams.get('v') !== latest;
 }
 
-function reloadToVersion(v) {
+function isDataStale() {
+  return dataLoadedAt !== null && Date.now() - dataLoadedAt > DATA_MAX_AGE_MS;
+}
+
+// A changed query string makes the browser fetch the page again instead of
+// using its cached copy; prices are always fetched with no-store.
+function reloadApp(param, value, reason) {
   try {
-    sessionStorage.setItem(RESTORE_KEY, JSON.stringify({ tab: currentProduct ? currentProduct.id : null }));
+    sessionStorage.setItem(RESTORE_KEY, JSON.stringify({ tab: currentProduct ? currentProduct.id : null, reason }));
   } catch (e) {}
   const url = new URL(location.href);
-  url.searchParams.set('v', v);
+  url.searchParams.set(param, value);
   location.replace(url.toString());
+}
+
+function reloadToVersion(v) { reloadApp('v', v, 'version'); }
+function reloadForFreshData(reason) { reloadApp('r', Date.now(), reason); }
+
+// What is due, if anything — a newer build wins over stale prices.
+function dueReload(latest) {
+  if (isNewBuild(latest)) return () => reloadToVersion(latest);
+  if (isDataStale()) return () => reloadForFreshData('stale');
+  return null;
 }
 
 // Set by the previous page right before an auto-reload; read once.
@@ -3089,20 +3131,30 @@ let lastInteraction = Date.now();
 ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev =>
   window.addEventListener(ev, () => { lastInteraction = Date.now(); }, { passive: true, capture: true }));
 
-let pendingVersion = null;
+let pendingReload = null;
 let reloadTimer = null;
 
 function tryAutoReload() {
   reloadTimer = null;
-  if (!pendingVersion) return;
+  if (!pendingReload) return;
   const idleFor = Date.now() - lastInteraction;
-  if (document.hidden || idleFor >= RELOAD_IDLE_MS) { reloadToVersion(pendingVersion); return; }
+  if (document.hidden || idleFor >= RELOAD_IDLE_MS) { pendingReload(); return; }
   reloadTimer = setTimeout(tryAutoReload, RELOAD_IDLE_MS - idleFor + 250);
 }
 
-function scheduleAutoReload(latest) {
-  pendingVersion = latest;
+function scheduleAutoReload(reload) {
+  pendingReload = reload;
   if (!reloadTimer) tryAutoReload();
+}
+
+// Back on the tab or the window (e.g. from Raynet) — refresh before they start clicking.
+let returnCheckRunning = false;
+async function checkOnReturn() {
+  if (returnCheckRunning) return;
+  returnCheckRunning = true;
+  const reload = dueReload(await fetchDeployedVersion());
+  returnCheckRunning = false;
+  if (reload) reload();
 }
 
 // On open — the user is not mid-task yet, reload straight away.
@@ -3116,18 +3168,19 @@ function startVersionWatch() {
   if (IS_LOCAL) return;
   setInterval(async () => {
     const latest = await fetchDeployedVersion();
-    if (isNewBuild(latest)) scheduleAutoReload(latest);
+    if (isNewBuild(latest)) scheduleAutoReload(() => reloadToVersion(latest));
+    // Stale prices in a hidden tab wait for the return — no reloads nobody sees.
+    else if (isDataStale() && !document.hidden) scheduleAutoReload(() => reloadForFreshData('stale'));
   }, 3 * 60 * 1000);
 
-  document.addEventListener('visibilitychange', async () => {
+  document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-      if (pendingVersion) reloadToVersion(pendingVersion);   // nobody is looking
+      if (pendingReload) pendingReload();   // nobody is looking
       return;
     }
-    // Back on the tab (e.g. from Raynet) — refresh before they start clicking.
-    const latest = await fetchDeployedVersion();
-    if (isNewBuild(latest)) reloadToVersion(latest);
+    checkOnReturn();
   });
+  window.addEventListener('focus', checkOnReturn);
 }
 
 // ─── LOGIN GATE ───
