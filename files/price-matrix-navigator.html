@@ -697,28 +697,30 @@
   /* Zebra rows — on <tr>, so stojna/zip tints on <td> still layer on top */
   tbody tr:nth-child(even) { background: var(--zebra); }
 
-  /* Matrix footer row (e.g. lamela counts) */
-  tfoot.matrix-footer td.footer-cell {
+  /* Matrix footer row (e.g. lamela counts, šikmina high-side height).
+     A <tbody>, not <tfoot>: browsers move every <tfoot> to the bottom of the
+     table, so in a multi-matrix it would leave its own variant. */
+  .matrix-footer td.footer-cell {
     font-family: 'Inter', sans-serif;
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(10px, 1vw, 12px);
-    color: #7a8499;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: clamp(11px, 1vw, 13px);
+    color: #9cc8ff;
     text-align: center;
     padding: 6px 6px;
     border-top: 1px solid var(--border);
-    background: rgba(74, 158, 255, 0.04);
+    background: rgba(74, 158, 255, 0.08);
     cursor: default;
   }
-  tfoot.matrix-footer th.footer-label {
+  .matrix-footer th.footer-label {
     font-family: 'Inter', sans-serif;
-    font-style: italic;
     font-size: clamp(9px, 0.9vw, 11px);
-    color: #7a8499;
+    color: #9cc8ff;
+    white-space: nowrap;
     text-align: right;
     padding: 6px 8px;
     border-top: 1px solid var(--border);
-    background: rgba(74, 158, 255, 0.04);
+    background: rgba(74, 158, 255, 0.08);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 600;
@@ -1530,6 +1532,10 @@
 <div class="selection-bar" id="selectionBar">
   <span class="sel-product-name" id="selProductName"></span>
   <input type="text" class="sel-value sel-dims" id="selDims" readonly>
+  <div class="sel-group" id="selFooterGroup" style="display:none">
+    <span class="sel-label" id="selFooterLabel"></span>
+    <input type="text" class="sel-value sel-dims" id="selFooter" readonly>
+  </div>
   <div class="sel-divider"></div>
   <div class="sel-group">
     <span class="sel-label">Cena</span>
@@ -1621,7 +1627,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261111-120013';
+const BUILD_VERSION = '20261111-153038';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -2761,25 +2767,24 @@ function showProduct(product) {
     });
     table.appendChild(tbody);
 
-    // Horizontal footer (e.g. lamela counts for Bioclimatic)
+    // Horizontal footer (e.g. lamela counts for Bioclimatic, high side of šikmina)
     if (product.horizontalFooter && product.horizontalFooter.values) {
-      const tfoot = document.createElement('tfoot');
-      tfoot.className = 'matrix-footer';
+      const footBody = document.createElement('tbody');
+      footBody.className = 'matrix-footer';
       const frow = document.createElement('tr');
       const labelTh = document.createElement('th');
       labelTh.className = 'footer-label';
       labelTh.textContent = product.horizontalFooter.label || '';
       frow.appendChild(labelTh);
       sec.horizontalValues.forEach((w, ci) => {
-        const fci = product.horizontalValues ? product.horizontalValues.indexOf(w) : ci;
         const td = document.createElement('td');
         td.className = 'footer-cell';
-        const v = product.horizontalFooter.values[fci >= 0 ? fci : ci];
+        const v = footerValueAt(product, sec, ci);
         td.textContent = v != null ? v : '';
         frow.appendChild(td);
       });
-      tfoot.appendChild(frow);
-      table.appendChild(tfoot);
+      footBody.appendChild(frow);
+      table.appendChild(footBody);
     }
 
     // Per-variant description (multi-matrix products with knowledge.md)
@@ -2811,7 +2816,7 @@ function showProduct(product) {
   }
   if (product.horizontalFooter && product.horizontalFooter.values) {
     const l = product.horizontalFooter.label || '';
-    items.push(`<span class="legend-item legend-footer-note"><span class="legend-swatch swatch-footer"></span>řada čísel pod maticí = ${l} pro danou šířku</span>`);
+    items.push(`<span class="legend-item legend-footer-note"><span class="legend-swatch swatch-footer"></span>řádek pod cenami = ${l}</span>`);
   }
   if (items.length) {
     legend.innerHTML = items.join('');
@@ -2897,6 +2902,7 @@ function bindMatrixEvents(table, sections) {
     const price = parseInt(cell.textContent.trim());
     const width = sec.horizontalValues[ci];
     const depth = sec.verticalValues[ri];
+    const footerValue = footerValueAt(currentProduct, sec, ci);
     const baseName = currentProduct.catalogName || currentProduct.name;
     const name = sec.label ? `${baseName} ${sec.label}` : baseName;
 
@@ -2904,7 +2910,7 @@ function bindMatrixEvents(table, sections) {
     showToast(`Zkopírováno: ${price}`);
     cell.classList.add('copied-flash');
     setTimeout(() => cell.classList.remove('copied-flash'), 200);
-    updateSelectionBar(name, width, depth, price, sec.label);
+    updateSelectionBar(name, width, depth, price, sec.label, footerValue);
   }, { signal });
 }
 
@@ -2923,7 +2929,15 @@ function fitInput(input) {
   probe.remove();
 }
 
-function updateSelectionBar(name, width, depth, price, sectionLabel) {
+// Footer value under column ci (matched by width when the product has one shared axis)
+function footerValueAt(product, sec, ci) {
+  const f = product.horizontalFooter;
+  if (!f || !f.values) return null;
+  const fci = product.horizontalValues ? product.horizontalValues.indexOf(sec.horizontalValues[ci]) : ci;
+  return f.values[fci >= 0 ? fci : ci] ?? null;
+}
+
+function updateSelectionBar(name, width, depth, price, sectionLabel, footerValue) {
   const nameEl = document.getElementById('selProductName');
   nameEl.textContent = name;
   nameEl.title = name;
@@ -2935,6 +2949,18 @@ function updateSelectionBar(name, width, depth, price, sectionLabel) {
   dimsInput.value = `${prefix}${width} × ${depth} ${unit}`;
   fitInput(dimsInput);
   dimsInput.onclick = () => copyFromInput(dimsInput);
+
+  const footerGroup = document.getElementById('selFooterGroup');
+  if (footerValue != null) {
+    const footerInput = document.getElementById('selFooter');
+    document.getElementById('selFooterLabel').textContent = currentProduct.horizontalFooter.label || '';
+    footerInput.value = footerValue;
+    footerGroup.style.display = 'flex';
+    fitInput(footerInput);
+    footerInput.onclick = () => copyFromInput(footerInput);
+  } else {
+    footerGroup.style.display = 'none';
+  }
 
   const priceInput = document.getElementById('selPrice');
   priceInput.value = price;
