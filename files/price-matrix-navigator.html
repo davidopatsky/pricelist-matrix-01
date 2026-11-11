@@ -1621,7 +1621,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261106-144708';
+const BUILD_VERSION = '20261111-120013';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -2031,6 +2031,8 @@ async function loadCatalog() {
 
     allProducts = await Promise.all(fetches);
     dataLoadedAt = Date.now();
+    const montazSections = allProducts.find(p => p.pricingType === 'percent-tariff')?.tariffSections || [];
+    allProducts.forEach(p => applyMontazSection(p, montazSections));
 
     // Prepend static info tab (business info for sales — not from pricelist)
     allProducts.unshift({
@@ -2101,6 +2103,20 @@ function updateBadges(product) {
 }
 
 // ─── INSTALL RATE FIELDS ───
+// Montáž that is not a percentage of the price comes from the product's
+// section in montaz/prices.json: flat_fee = fixed CZK per piece,
+// per_m2 = CZK × panel area. Percentage sections keep the 11–14 % columns.
+function applyMontazSection(product, sections) {
+  const sec = sections.find(s => s.applies_to_skus?.includes(product.id))
+    || sections.find(s => s.applies_to_category && s.applies_to_category === product.category);
+  if (!sec) return;
+  if (sec.rate_type === 'flat_fee' && sec.fee_czk > 0 && product.montazFixed == null) {
+    product.montazFixed = sec.fee_czk;
+  } else if (sec.rate_type === 'per_m2' && sec.fee_czk_per_m2 > 0) {
+    product.montazPerM2 = sec.fee_czk_per_m2;
+  }
+}
+
 function buildInstallGroups(product) {
   const group = document.getElementById('selInstallGroup');
   group.innerHTML = '';
@@ -2115,6 +2131,22 @@ function buildInstallGroups(product) {
     input.className = 'sel-value sel-install';
     input.readOnly = true;
     input.setAttribute('data-fixed', product.montazFixed);
+    input.addEventListener('click', () => copyFromInput(input));
+    group.appendChild(label);
+    group.appendChild(input);
+    return;
+  }
+
+  // Montáž per m² (e.g. PUR panel — CZK × width × height)
+  if (product && product.montazPerM2) {
+    const label = document.createElement('span');
+    label.className = 'sel-label';
+    label.textContent = `Montáž ${product.montazPerM2} Kč/m²`;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'sel-value sel-install';
+    input.readOnly = true;
+    input.setAttribute('data-per-m2', product.montazPerM2);
     input.addEventListener('click', () => copyFromInput(input));
     group.appendChild(label);
     group.appendChild(input);
@@ -2369,18 +2401,22 @@ function fmtCzk(n) {
   return n == null ? '∞' : new Intl.NumberFormat('cs-CZ').format(n) + ' Kč';
 }
 
-function makePercentChip(percent) {
-  const pct = document.createElement('span');
-  pct.className = 'tariff-percent';
-  pct.textContent = `${percent} %`;
-  pct.title = 'Klikni pro zkopírování';
-  pct.addEventListener('click', () => {
-    copyToClipboard(String(percent));
-    showToast(`Zkopírováno: ${percent} %`);
-    pct.classList.add('copied');
-    setTimeout(() => pct.classList.remove('copied'), 400);
+function makeCopyChip(text, copyText) {
+  const chip = document.createElement('span');
+  chip.className = 'tariff-percent';
+  chip.textContent = text;
+  chip.title = 'Klikni pro zkopírování';
+  chip.addEventListener('click', () => {
+    copyToClipboard(copyText);
+    showToast(`Zkopírováno: ${text}`);
+    chip.classList.add('copied');
+    setTimeout(() => chip.classList.remove('copied'), 400);
   });
-  return pct;
+  return chip;
+}
+
+function makePercentChip(percent) {
+  return makeCopyChip(`${percent} %`, String(percent));
 }
 
 function renderTariffView(container, product) {
@@ -2406,6 +2442,20 @@ function renderTariffView(container, product) {
       const flat = document.createElement('div');
       flat.className = 'tariff-flat';
       flat.appendChild(makePercentChip(sec.percent));
+      card.appendChild(flat);
+    } else if (sec.rate_type === 'flat_fee' || sec.rate_type === 'per_m2') {
+      if (sec.note) {
+        const sub = document.createElement('div');
+        sub.className = 'tariff-sub';
+        sub.textContent = sec.note;
+        card.appendChild(sub);
+      }
+      const amount = sec.rate_type === 'flat_fee' ? sec.fee_czk : sec.fee_czk_per_m2;
+      const flat = document.createElement('div');
+      flat.className = 'tariff-flat';
+      flat.appendChild(makeCopyChip(
+        sec.rate_type === 'flat_fee' ? `${fmtCzk(amount)} / ks` : `${fmtCzk(amount)} / m²`,
+        String(amount)));
       card.appendChild(flat);
     } else if (sec.rate_type === 'tiered_by_price') {
       if (sec.tier_note) {
@@ -2904,11 +2954,13 @@ function updateSelectionBar(name, width, depth, price, sectionLabel) {
     costGroup.style.display = 'none';
   }
 
-  // Montáž — fixed CZK (e.g. screen) or percentage of catalog price
+  // Montáž — fixed CZK (e.g. screen), CZK per m² of area, or percentage of catalog price
+  const m2 = width * depth / (unit === 'cm' ? 1e4 : 1e6);
   document.querySelectorAll('#selInstallGroup .sel-install').forEach(input => {
     const fixed = input.getAttribute('data-fixed');
-    const installPrice = fixed != null
-      ? parseInt(fixed)
+    const perM2 = input.getAttribute('data-per-m2');
+    const installPrice = fixed != null ? parseInt(fixed)
+      : perM2 != null ? Math.round(parseFloat(perM2) * m2)
       : Math.round(price * parseInt(input.getAttribute('data-rate')) / 100);
     input.value = installPrice;
     fitInput(input);
