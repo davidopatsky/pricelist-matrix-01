@@ -1627,7 +1627,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261111-153038';
+const BUILD_VERSION = '20261112-174126';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -2191,7 +2191,7 @@ const NAV_SLOTS = [
   { key: 'alux',          label: 'ALUX pergoly' },
   { key: 'maxi',          label: 'MAXI' },
   { key: 'strada',        label: 'Strada pergoly' },
-  { key: 'simple-ancona' },
+  { key: 'simple',        label: 'Simple pergoly' },
   { key: 'zaskleni',      label: 'Zasklení' },
   { key: 'screen',        label: 'Screenové rolety', order: ['alux-screen', 'screen-a'] },
   { key: 'markyzy',       label: 'Markýzy' },
@@ -2205,7 +2205,7 @@ const NAV_SLOTS = [
 // gets a plain tab after the slots, so nothing ever disappears.
 function navSlotOf(p) {
   const id = p.id || '';
-  if (id === 'simple-ancona') return id;
+  if (p.category === 'simple' || id.startsWith('simple-')) return 'simple';
   if (isScreenSku(id)) return 'screen';
   if (id.includes('zaskleni')) return 'zaskleni';
   if (id.startsWith('markyza')) return 'markyzy';
