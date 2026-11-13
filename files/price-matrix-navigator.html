@@ -965,6 +965,7 @@
     gap: 6px;
   }
   .sel-label {
+    user-select: none;
     font-size: 13px;
     font-weight: 600;
     text-transform: uppercase;
@@ -1564,7 +1565,19 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function mdInline(s) {
-  return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return escapeHtml(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])[_*]([^_*\n]+?)[_*](?=$|[\s).,;:!?])/g, '$1<em>$2</em>');
+}
+
+// knowledge.md sections still holding only a placeholder ("_(zatím bez popisu)_")
+// are left out; headings with no body of their own (parents of ### variants) stay.
+const MD_PLACEHOLDER = /^[_*]?\(zatím [^)]*\)[_*]?$/i;
+function dropPlaceholderSections(md) {
+  return md.split(/^(?=#{2,4}\s)/m).filter(part => {
+    const body = (/^#{2,4}\s/.test(part) ? part.replace(/^.*\n?/, '') : part).trim();
+    return !MD_PLACEHOLDER.test(body) && (body || /^#{2,4}\s/.test(part));
+  }).join('').trim();
 }
 function mdToHtml(md) {
   const lines = md.split('\n');
@@ -1627,7 +1640,7 @@ const AUTH_KEY = 'pricelist_auth';
 // How long a login stays valid before asking again (days).
 const AUTH_TTL_DAYS = 30;
 // Bumped automatically by bump-version.sh on each deploy; must match version.txt.
-const BUILD_VERSION = '20261112-174126';
+const BUILD_VERSION = '20261113-154406';
 
 // ─── STATIC INFO (Aktuální tab) — business info for sales, NOT from pricelist ───
 const STATIC_INFO_MD = `## Aktuální akce
@@ -2573,8 +2586,9 @@ function showProduct(product) {
   // Bottom: general product description from knowledge.md "## Popis"
   const techSection = document.querySelector('.tech-section');
   const techEl = document.getElementById('techDescription');
-  if (product.knowledgeDescription) {
-    techEl.innerHTML = mdToHtml(product.knowledgeDescription);
+  const knowledgeText = dropPlaceholderSections(product.knowledgeDescription || '');
+  if (/[^#\s]/.test(knowledgeText.replace(/^#{2,4}\s.*$/gm, ''))) {
+    techEl.innerHTML = mdToHtml(knowledgeText);
     techSection.style.display = '';
   } else {
     techEl.innerHTML = '';
@@ -2711,7 +2725,8 @@ function showProduct(product) {
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     const corner = document.createElement('th');
-    corner.innerHTML = `<div class="corner-label"><span>${vLabel} ↓</span><span>${hLabel} →</span></div>`;
+    const axisName = l => l.replace(/\s*\((mm|cm)\)\s*$/i, '');
+    corner.innerHTML = `<div class="corner-label"><span>${axisName(vLabel)} ↓</span><span>${axisName(hLabel)} →</span></div>`;
     headerRow.appendChild(corner);
     sec.horizontalValues.forEach((w, ci) => {
       const th = document.createElement('th');
